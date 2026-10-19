@@ -298,3 +298,20 @@ Verification (2026-10-19):
 - Local relative-link check across matrix, addendum, and root README: PASS, no missing relative links.
 - TC_TRACE_001: PASS based on verified 23 Sprint 1 aliases/Jira mappings, 22 explicit SRS-ID links with the FS-11-09 process exception, 54/54 source test cases linked to a catalog story, intact Release 2 labels, and visible gaps. TC_ENV_001 and TC_ENV_002 remain without execution rows and default to NOT RUN; all other unexecuted tests retain their prior states.
 Remaining criteria: FIN-79 remains PARTIAL. Product-owner decisions are required for 81 unmapped requirements and for Jira-only FIN-84–FIN-87 without source aliases; see Q-009 and Q-010 in `conversation.txt`. The supplied test plan covers Sprint 1, not full project-wide validation. No source-document or Git diff review was attempted; Git responsiveness remains the separately recorded blocker.
+
+FIN-73 targeted CI repair — GitHub Actions run 39203215763 (2026-10-19)
+Status: PARTIAL; local fixes verified, remote run pending.
+Repairs:
+- In `.github/workflows/ci.yml`, changed the frontend archive source to `.next` relative to the job working directory `apps/web`, and added hard checks that `.next/standalone` and `.next/static` exist before archiving. Archive still contains top-level `standalone/` and `static/`, matching E2E extraction and release-package restoration paths.
+- Normalized line endings in `docs/requirements/traceability-stories.csv` from CRLF to LF. Parsed CSV values were compared against HEAD and all 73 rows (including the header) were identical. The current file has no trailing whitespace.
+- Removed the extra blank line at EOF from `scripts/validate_traceability.py`; one required final newline remains. There is no in-repository generator for the traceability CSV; the validator only reads it.
+Checks (2026-10-19):
+- PyYAML parse and targeted archive-step assertions: PASS.
+- `NEXT_TELEMETRY_DISABLED=1 npm run build` in `apps/web`: PASS, exit 0; Next.js 16.4.2 production build completed and emitted standalone output.
+- Confirmed `apps/web/.next/standalone` and `apps/web/.next/static` exist after build.
+- `tar -czf /tmp/finsight-frontend-build.tar.gz -C .next standalone static` (with macOS `COPYFILE_DISABLE=1` for local archive inspection): PASS. Archive inspection found only root entries `standalone/` and `static/` (1,466 entries); SHA-256 verified: `651f28563199baf95574f9c23fc78e2b8d6a10a88bf4a114c3fc033b744c3513`.
+- `python3 scripts/validate_traceability.py`: PASS (409 requirements, 72 aliases, 54 tests; 328 mapped, 81 unmapped; source test IDs TC_ENV_001/002 remain NOT RUN).
+- `python3 -m py_compile scripts/validate_traceability.py`: PASS.
+- CSV trailing-whitespace scan: 0 rows. `git diff --check`: PASS, exit 0.
+GitHub-side limitation: `git show --check --format= HEAD` against the existing root commit exits 2 with 1,323 diagnostics, including immutable source PDFs and other pre-existing root-commit files. No source PDF/SQL/diagram/test plan was edited. The targeted working diff passes `git diff --check`; an incremental commit/push is needed so the next GitHub run checks only the corrective diff. No commit, push, Jira update, or remote rerun was made. A new GitHub Actions result is required before claiming the repair passed remotely; FIN-73/74/79 status is unchanged.
+Final review note (2026-10-19): `git diff --check` exited 0 for the targeted workflow/CSV/script changes before coordination records were appended. A later full `git diff --check` attempt timed out after 8 seconds (intermittent Git responsiveness); direct trailing-whitespace scans of `.github/workflows/ci.yml`, `docs/requirements/traceability-stories.csv`, `scripts/validate_traceability.py`, and both updated coordination files found zero whitespace errors and all had final newlines. The historical root-commit check result above remains distinct from the current worktree check.

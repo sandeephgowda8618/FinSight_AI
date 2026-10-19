@@ -58,8 +58,11 @@ jobs:
         run: npm run build
         env:
           NEXT_TELEMETRY_DISABLED: "1"
-      - name: Archive standalone frontend and static assets
-        run: tar -czf "$RUNNER_TEMP/frontend-build.tar.gz" -C apps/web/.next standalone static
+      - name: Verify and archive standalone frontend and static assets
+        run: |
+          test -d .next/standalone || { echo "Missing required Next.js standalone output: apps/web/.next/standalone"; exit 1; }
+          test -d .next/static || { echo "Missing required Next.js static output: apps/web/.next/static"; exit 1; }
+          tar -czf "$RUNNER_TEMP/frontend-build.tar.gz" -C .next standalone static
       - name: Upload frontend production build for tests and release packaging
         uses: actions/upload-artifact@v4
         with:

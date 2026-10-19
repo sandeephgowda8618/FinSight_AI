@@ -75,4 +75,3 @@ def main():
     print("VALIDATION PASS: inventories, test references, evidence fields, and Release 2 labels are consistent.")
     return 0
 if __name__=="__main__": raise SystemExit(main())
-
