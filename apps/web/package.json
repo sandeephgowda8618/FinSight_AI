@@ -1,0 +1,23 @@
+{
+  "name": "finsight-web",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": ">=20.9"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "test:ui": "playwright test --config playwright.ui.config.js",
+    "test:e2e": "playwright test --config playwright.e2e.config.js"
+  },
+  "dependencies": {
+    "next": "16.4.2",
+    "react": "19.2.5",
+    "react-dom": "19.2.5"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1"
+  }
+}

@@ -1,0 +1,123 @@
+Sprint 1 test execution record — executed cases only
+Date: 2026-10-18
+Tester: Codex
+Source inventory: Dcos/FinSight_AI_Sprint_1_Test_Plan.pdf (unchanged)
+
+The entries below record only test cases actually executed or explicitly blocked by an unmet prerequisite. Unexecuted cases remain NOT RUN.
+
+TC_ENV_001 — Reproduce the application setup from a clean clone
+Status: BLOCKED
+Execution date: 2026-10-18
+Actual result: In a disposable snapshot assembled from the current worktree, `npm ci --no-audit --no-fund` passed, the Python lock installed, `NEXT_TELEMETRY_DISABLED=1 npm run build` passed, and both production servers returned their expected content over HTTP. This does not establish a Git-clone test.
+Tester/owner: Codex
+Evidence: `/private/tmp/finsight-fin2.xhyem5` disposable setup snapshot; command outcomes are summarized in `IMPLEMENTATION_STATUS.txt`.
+Linked defect/blocker: The case requires a clean Git clone and database migrations. The new setup files are not committed and this task intentionally did not add a database or migrations. Startup subchecks passed; do not count this case as PASS.
+
+TC_ENV_002 — Verify environment templates contain placeholders and repository hygiene is clean
+Status: PASS
+Execution date: 2026-10-18
+Actual result: `.env.example` contains only a non-secret loopback URL; the safe-configuration pattern scan and tracked-HEAD secret-pattern/sentinel check had no matches. `.env`, `.env.local`, `.venv`, `node_modules`, and `.next` are ignored; `.env.example` is not ignored.
+Tester/owner: Codex
+Evidence: `python3 -c` static checks; `git check-ignore` results; `git grep -q` tracked-HEAD check; current Git status.
+Linked defect/blocker: —
+
+FIN-13 / FS-01-01 — Authenticate and manage sessions
+Execution date: 2026-10-18
+Tester/owner: Codex
+Disposable PostgreSQL evidence: `/private/tmp/finsight-fin13-pg`, database `finsight` (local trust-authenticated test cluster; not project/user data).
+
+TC_AUTHN_001 — Authenticate a valid user and create a valid session
+Status: PASS
+Actual result: Successful login returned only user profile fields, set an HttpOnly/SameSite=Lax cookie, stored only the cookie digest in `auth_sessions`, and allowed the protected `/auth/me` request. The test used a synthetic account in the disposable PostgreSQL database.
+Command: `DATABASE_URL=postgresql://sandeeph@127.0.0.1:55439/finsight .venv/bin/python -m pytest -q apps/api/tests`
+Evidence: test `test_login_creates_protected_hashed_expiring_session`; migration `apps/api/migrations/0001_auth_identity.sql` applied successfully.
+
+TC_AUTHN_002 — Reject invalid credentials without account enumeration
+Status: PASS
+Actual result: Known-user/wrong-password and nonexistent-user requests returned identical 401 status and generic body; no cookie was issued. Missing-user verification also runs a dummy Argon2id check.
+Evidence: test `test_invalid_credentials_have_same_generic_response` in the command above.
+
+TC_AUTHN_003 — Terminate a session on logout and reject reuse
+Status: PASS
+Actual result: Logout returned 204, set revocation metadata, cleared the cookie, and replay against `/auth/me` returned 401.
+Evidence: test `test_logout_revokes_session_and_replay_fails` in the command above.
+
+TC_AUTHN_005 — Enforce administrator-controlled onboarding and restricted public registration
+Status: BLOCKED
+Actual result: The test confirmed `/auth/register` is not exposed (404). A local provisioning command exists and requires database access, but the administrator onboarding workflow and invitation lifecycle are not implemented or verified.
+Evidence: test `test_public_registration_is_not_available`; `apps/api/app/provision_user.py`.
+Remaining: implement/verify the approved administrator-controlled onboarding workflow in its authorized scope.
+
+TC_AUTHZ_003 — Expire inactive sessions according to configured policy
+Status: PASS (session-expiry behavior exercised as a FIN-13 acceptance check; Jira scope remains unchanged)
+Actual result: A session with stale `last_seen_at` was rejected by the protected endpoint. TTL bounds are validated and expiry uses `SESSION_TTL_MINUTES`.
+Evidence: test `test_expired_session_is_rejected` in the command above.
+
+TC_AUTHN_006 — Verify passwords are not stored in plaintext
+Status: PASS
+Execution date: 2026-10-18
+Actual result: A synthetic random password and session token were inserted into the disposable PostgreSQL database; the generated `pg_dump` contained their password/session digests and neither plaintext value. The login test also verified response and captured log/stdout/stderr privacy. The synthetic user was deleted and dump removed.
+Evidence: `test_password_hash_is_argon2_and_never_plaintext`, `test_login_creates_protected_hashed_expiring_session`, and the disposable scan command/result summarized in `IMPLEMENTATION_STATUS.txt`.
+
+TC_AUTHN_007 — Verify HTTPS transport and secure cookie handling in deployed configuration
+Status: BLOCKED
+Actual result: The cookie was verified HttpOnly and SameSite=Lax in local HTTP tests; `COOKIE_SECURE=true` sets Secure. No deployed HTTPS endpoint was available to verify transport enforcement.
+Evidence: `test_secure_cookie_can_be_required_by_deployment`.
+
+Other cases remain NOT RUN unless listed below. Password recovery is required by SRS FR-P1-03 while password authentication is enabled, and is BLOCKED pending the decision in conversation.txt Q-005. Broader RBAC/security cases, deployment checks, and manual browser accessibility were not executed.
+
+Full Sprint 1 inventory status index (source register contains 54 cases):
+TC_CI_001 | Status: BLOCKED | Execution date: 2026-10-18 | Actual result: Workflow YAML parsed locally; GitHub Actions pull-request run not available without publishing changes | Tester/owner: Codex | Evidence: .github/workflows/ci.yml; workflow validation command in IMPLEMENTATION_STATUS.txt | Linked defect: GitHub run required
+TC_CI_002 | Status: BLOCKED | Execution date: 2026-10-18 | Actual result: Local checks pass, but GitHub required-check/failing-job enforcement not verified on an actual PR | Tester/owner: Codex | Evidence: .github/workflows/ci.yml; conversation.txt Q-006 | Linked defect: GitHub rules/run required
+TC_BUILD_001 | Status: BLOCKED | Execution date: 2026-10-18 | Actual result: Versioned local package built with runtime API configuration and verified checksum/repeatable packaging; no full source commit SHA was available because implementation changes are uncommitted | Tester/owner: Codex | Evidence: dist/finsight-0.1.0-local.tar.gz; adjacent build-info/checksum; IMPLEMENTATION_STATUS.txt | Linked defect: committed candidate SHA required
+TC_BUILD_002 | Status: BLOCKED | Execution date: 2026-10-18 | Actual result: Deployment/rollback runbook recorded and extracted package smoke-tested locally; no hosting target or previous known-good release exists to execute a deployment rollback | Tester/owner: Codex | Evidence: docs/release/RELEASE_README.md; local extracted bundle smoke result in IMPLEMENTATION_STATUS.txt | Linked defect: target and prior release required
+TC_TEST_001 | Status: PASS | Execution date: 2026-10-18 | Actual result: Backend unit and PostgreSQL integration suites passed; frontend interaction tests passed; live browser smoke passed twice against fresh synthetic accounts and once against production standalone output; exit codes and JUnit reports reviewed | Tester/owner: Codex | Evidence: apps/api/tests/test_auth_unit.py; apps/api/tests/test_auth.py; apps/api/tests/test_identity_constraints.py; apps/web/test-results/ui/results.xml; apps/web/test-results/e2e/results.xml; coverage.xml; scripts/run_live_e2e.py; IMPLEMENTATION_STATUS.txt | Linked defect: —
+TC_DB_001 | Status: BLOCKED | Execution date: 2026-10-18 | Actual result: Existing identity migration applied to a fresh disposable PostgreSQL database; case-insensitive email uniqueness and session cascade verified. Full case remains blocked because only identity/session schema exists; api_credentials, audit_events, execution_runs, service_health_checks and migration-runner repeatability are not implemented | Tester/owner: Codex | Evidence: apps/api/migrations/0001_auth_identity.sql; apps/api/tests/test_identity_constraints.py; IMPLEMENTATION_STATUS.txt | Linked defect: Missing broader Sprint 1 schemas and migration runner
+TC_COV_001 | Status: PASS | Execution date: 2026-10-18 | Actual result: CI-equivalent unit (37) and PostgreSQL integration (10) suites passed; cumulative backend line coverage 156/156 (100%) and branch coverage 28/28 (100%). Provisioning CLI, configuration and authentication/session database failure paths were tested. Frontend source coverage is not supported by current Playwright instrumentation; remote artifact retention remains unverified. | Tester/owner: Codex | Evidence: coverage.xml (ignored local report); htmlcov/index.html (ignored local report); /tmp/finsight-coverage.json; apps/api/tests/test_auth.py; apps/api/tests/test_auth_unit.py; apps/api/tests/test_provision_user.py; IMPLEMENTATION_STATUS.txt | Linked defect: GitHub artifact confirmation / frontend source instrumentation decision
+TC_INT_001 | Status: BLOCKED | Execution date: 2026-10-18 | Actual result: Authentication/session persistence tested against PostgreSQL; configuration versioning, audit persistence, and authorized/denied configuration update flows are absent from the current implementation | Tester/owner: Codex | Evidence: apps/api/tests/test_auth.py; apps/api/tests/test_identity_constraints.py; IMPLEMENTATION_STATUS.txt | Linked defect: FIN-08/FIN-09 capabilities not implemented
+TC_SYS_001 | Status: BLOCKED | Execution date: 2026-10-18 | Actual result: Browser smoke verified current sign-in/session/logout path against live frontend, FastAPI, and PostgreSQL. Full planned dashboard/settings, dependency health, Ollama available/unavailable, and correlation-log workflow cannot run because those components are not implemented | Tester/owner: Codex | Evidence: apps/web/tests/e2e/auth.spec.js; scripts/run_live_e2e.py; IMPLEMENTATION_STATUS.txt | Linked defect: Current application implements auth starter only
+TC_SEC_001 | Status: BLOCKED | Execution date: 2026-10-19 | Actual result: Local dependency audits and Bandit ran. Before remediation npm audit found 3 vulnerable dependency nodes (1 critical, 2 high); pip-audit found 14 advisory records across 3 packages. After targeted updates npm audit and pip-audit reported zero known vulnerabilities. Security job added to CI and release-package depends on it; workflow parsed locally but no GitHub runner execution was available. | Tester/owner: Codex | Evidence: /tmp/finsight-npm-audit-before.json; /tmp/finsight-npm-audit-after.json; /tmp/finsight-pip-audit.json; /tmp/finsight-pip-audit-after.json; .github/workflows/ci.yml; IMPLEMENTATION_STATUS.txt | Linked defect: GitHub Actions run required
+TC_SEC_002 | Status: BLOCKED | Execution date: 2026-10-19 | Actual result: Secret-pattern scan of application/configuration paths reported no matches. Upload validation and prompt-injection tests could not be exercised because file upload and RAG/context construction are not implemented in this repository; no related feature or tests were added. | Tester/owner: Codex | Evidence: local source/config credential-pattern scan; apps/web/app/page.js; IMPLEMENTATION_STATUS.txt | Linked defect: Upload/RAG implementation required in authorized later stories
+TC_DOC_001 | Status: PASS | Execution date: 2026-10-19 | Actual result: Reviewed documented current endpoints and schemas against generated FastAPI OpenAPI; representative invalid login returned 422 with `detail`, and unauthenticated `/auth/me` returned 401 with the documented generic detail. Architecture and compatibility notes distinguish current implementation from target features. | Tester/owner: Codex | Evidence: docs/architecture/README.md; docs/architecture/adr/; command output recorded in IMPLEMENTATION_STATUS.txt | Linked defect: —
+TC_TRACE_001 | Status: PASS | Execution date: 2026-10-19 | Actual result: All 23 Sprint 1 plan aliases have verified Jira mappings; 22 have explicit SRS requirement IDs and FS-11-09/FIN-80 is explicitly recorded as a process story with no direct SRS ID; all 54 source test cases map to a Sprint 1 story; Release 2 labels remain intact; unmapped requirements and catalog extras are reported explicitly. | Tester/owner: Codex | Evidence: docs/requirements/traceability-matrix.md; docs/requirements/traceability-requirements.csv; docs/requirements/traceability-stories.csv; scripts/validate_traceability.py | Linked defect: —
+TC_MGMT_001 | Status: NOT RUN | Execution date: — | Actual result: — | Tester/owner: — | Evidence: — | Linked defect: —
+TC_REL_001 | Status: NOT RUN | Execution date: — | Actual result: — | Tester/owner: — | Evidence: — | Linked defect: —
+TC_ETH_001 | Status: NOT RUN | Execution date: — | Actual result: — | Tester/owner: — | Evidence: — | Linked defect: —
+TC_OPS_001 | Status: NOT RUN | Execution date: — | Actual result: — | Tester/owner: — | Evidence: — | Linked defect: —
+TC_OPS_002 | Status: NOT RUN | Execution date: — | Actual result: — | Tester/owner: — | Evidence: — | Linked defect: —
+TC_OPS_003 | Status: NOT RUN | Execution date: — | Actual result: — | Tester/owner: — | Evidence: — | Linked defect: —
+TC_AUTHN_001 | Status: PASS | Execution date: 2026-10-18 | Actual result: Login/session/persistence/protected request verified | Tester/owner: Codex | Evidence: apps/api/tests/test_auth.py | Linked defect: —
+TC_AUTHN_002 | Status: PASS | Execution date: 2026-10-18 | Actual result: Generic failure responses verified | Tester/owner: Codex | Evidence: apps/api/tests/test_auth.py | Linked defect: —
+TC_AUTHN_003 | Status: PASS | Execution date: 2026-10-18 | Actual result: Logout revocation and replay rejection verified | Tester/owner: Codex | Evidence: apps/api/tests/test_auth.py | Linked defect: —
+TC_AUTHN_004 | Status: BLOCKED | Execution date: 2026-10-18 | Actual result: Password recovery is required while password authentication is enabled; implementation and delivery approach await user decision | Tester/owner: Codex | Evidence: conversation.txt Q-005; SRS FR-P1-03 | Linked defect: —
+TC_AUTHN_005 | Status: BLOCKED | Execution date: 2026-10-18 | Actual result: Public registration is absent, but admin onboarding workflow is incomplete | Tester/owner: Codex | Evidence: apps/api/tests/test_auth.py | Linked defect: —
+TC_AUTHZ_001 | Status: NOT RUN | Execution date: — | Actual result: — | Tester/owner: — | Evidence: — | Linked defect: —
+TC_AUTHZ_002 | Status: NOT RUN | Execution date: — | Actual result: — | Tester/owner: — | Evidence: — | Linked defect: —
+TC_AUTHZ_003 | Status: PASS | Execution date: 2026-10-18 | Actual result: Stale session rejected under configured TTL | Tester/owner: Codex | Evidence: apps/api/tests/test_auth.py | Linked defect: —
+TC_AUTHSEC_001 | Status: NOT RUN | Execution date: — | Actual result: — | Tester/owner: — | Evidence: — | Linked defect: —
+TC_AUTHSEC_002 | Status: NOT RUN | Execution date: — | Actual result: — | Tester/owner: — | Evidence: — | Linked defect: —
+TC_AUTHSEC_003 | Status: NOT RUN | Execution date: — | Actual result: — | Tester/owner: — | Evidence: — | Linked defect: —
+TC_AUTHSEC_004 | Status: NOT RUN | Execution date: — | Actual result: — | Tester/owner: — | Evidence: — | Linked defect: —
+TC_AUTHN_006 | Status: PASS | Execution date: 2026-10-18 | Actual result: Disposable synthetic database dump contained password/session digests; plaintext password/token absent; API test checked captured logs/stdout/stderr and response | Tester/owner: Codex | Evidence: apps/api/tests/test_auth.py; disposable scan summarized in IMPLEMENTATION_STATUS.txt (dump removed) | Linked defect: —
+TC_AUTHN_007 | Status: BLOCKED | Execution date: 2026-10-18 | Actual result: Local cookie flags checked; deployed HTTPS verification unavailable | Tester/owner: Codex | Evidence: apps/api/tests/test_auth.py | Linked defect: —
+TC_AUTHN_008 | Status: NOT RUN | Execution date: — | Actual result: — | Tester/owner: — | Evidence: — | Linked defect: —
+TC_AUTHN_009 | Status: NOT RUN | Execution date: — | Actual result: — | Tester/owner: — | Evidence: — | Linked defect: —
+TC_LLM_001 | Status: NOT RUN | Execution date: — | Actual result: — | Tester/owner: — | Evidence: — | Linked defect: —
+TC_LLM_002 | Status: NOT RUN | Execution date: — | Actual result: — | Tester/owner: — | Evidence: — | Linked defect: —
+TC_LLM_003 | Status: NOT RUN | Execution date: — | Actual result: — | Tester/owner: — | Evidence: — | Linked defect: —
+TC_CFG_001 | Status: NOT RUN | Execution date: — | Actual result: — | Tester/owner: — | Evidence: — | Linked defect: —
+TC_CFG_002 | Status: NOT RUN | Execution date: — | Actual result: — | Tester/owner: — | Evidence: — | Linked defect: —
+TC_CFG_003 | Status: NOT RUN | Execution date: — | Actual result: — | Tester/owner: — | Evidence: — | Linked defect: —
+TC_CFG_004 | Status: NOT RUN | Execution date: — | Actual result: — | Tester/owner: — | Evidence: — | Linked defect: —
+TC_CRED_001 | Status: NOT RUN | Execution date: — | Actual result: — | Tester/owner: — | Evidence: — | Linked defect: —
+TC_CRED_002 | Status: NOT RUN | Execution date: — | Actual result: — | Tester/owner: — | Evidence: — | Linked defect: —
+TC_PRIV_001 | Status: NOT RUN | Execution date: — | Actual result: — | Tester/owner: — | Evidence: — | Linked defect: —
+TC_PRIV_002 | Status: NOT RUN | Execution date: — | Actual result: — | Tester/owner: — | Evidence: — | Linked defect: —
+TC_EXEC_001 | Status: NOT RUN | Execution date: — | Actual result: — | Tester/owner: — | Evidence: — | Linked defect: —
+TC_EXEC_002 | Status: NOT RUN | Execution date: — | Actual result: — | Tester/owner: — | Evidence: — | Linked defect: —
+TC_EXEC_003 | Status: NOT RUN | Execution date: — | Actual result: — | Tester/owner: — | Evidence: — | Linked defect: —
+TC_DASH_001 | Status: NOT RUN | Execution date: — | Actual result: — | Tester/owner: — | Evidence: — | Linked defect: —
+TC_DASH_002 | Status: NOT RUN | Execution date: — | Actual result: — | Tester/owner: — | Evidence: — | Linked defect: —
+TC_INT_001 | Status: NOT RUN | Execution date: — | Actual result: — | Tester/owner: — | Evidence: — | Linked defect: —
+TC_SYS_001 | Status: NOT RUN | Execution date: — | Actual result: — | Tester/owner: — | Evidence: — | Linked defect: —
+TC_BOUNDARY_001 | Status: NOT RUN | Execution date: — | Actual result: — | Tester/owner: — | Evidence: — | Linked defect: —

@@ -1,0 +1,356 @@
+name: CI quality gates
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    name: Frontend lockfile and production build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - name: Install from lockfile
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Cache Playwright Chromium
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('apps/web/package-lock.json') }}
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+        working-directory: apps/web
+      - name: Run frontend interaction tests
+        run: npm run test:ui
+        env:
+          CI: "true"
+      - name: Upload frontend interaction report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-ui-test-report
+          path: apps/web/test-results/ui/results.xml
+          if-no-files-found: ignore
+          retention-days: 14
+      - name: Build production frontend
+        run: npm run build
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+      - name: Archive standalone frontend and static assets
+        run: tar -czf "$RUNNER_TEMP/frontend-build.tar.gz" -C apps/web/.next standalone static
+      - name: Upload frontend production build for tests and release packaging
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-${{ github.sha }}
+          path: ${{ runner.temp }}/frontend-build.tar.gz
+          if-no-files-found: error
+          retention-days: 1
+
+  backend:
+    name: Backend dependencies, migration, and tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: finsight_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d finsight_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/finsight_test
+      WEB_ORIGIN: http://localhost:3000
+      SESSION_TTL_MINUTES: "60"
+      COOKIE_SECURE: "false"
+      APP_ENV: test
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: apps/api/requirements-dev.lock
+      - name: Install locked backend and test dependencies
+        run: python -m pip install -r apps/api/requirements-dev.lock
+      - name: Check direct dependency pins are locked
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          requirements = [line.strip() for line in Path("apps/api/requirements.txt").read_text().splitlines()
+                          if line.strip() and not line.lstrip().startswith("#")]
+          locked = {line.strip() for line in Path("apps/api/requirements.lock").read_text().splitlines()}
+          for requirement in requirements:
+              if requirement.startswith("psycopg[binary]"):
+                  assert "psycopg==3.2.13" in locked and "psycopg-binary==3.2.13" in locked
+              else:
+                  assert requirement in locked, f"Missing direct pin from runtime lock: {requirement}"
+          PY
+      - name: Check dependency consistency
+        run: python -m pip check
+      - name: Apply identity migration to disposable CI database
+        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f apps/api/migrations/0001_auth_identity.sql
+      - name: Compile backend and tests
+        run: python -m compileall -q apps/api/app apps/api/tests
+      - name: Run backend unit tests and collect coverage
+        run: >-
+          python -m pytest -q --cov=app --cov-branch --cov-report=term-missing
+          --cov-report=xml:coverage.xml --cov-report=html:htmlcov
+          apps/api/tests/test_auth_unit.py apps/api/tests/test_provision_user.py
+      - name: Run backend PostgreSQL integration tests
+        run: >-
+          python -m pytest -q --cov=app --cov-branch --cov-append --cov-report=term-missing
+          --cov-report=xml:coverage.xml --cov-report=html:htmlcov
+          apps/api/tests/test_auth.py apps/api/tests/test_identity_constraints.py
+      - name: Upload backend coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: |
+            coverage.xml
+            htmlcov/
+          if-no-files-found: error
+          retention-days: 14
+
+  e2e:
+    name: Browser frontend/backend/PostgreSQL smoke
+    needs: [frontend, backend]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: finsight_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d finsight_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/finsight_test
+      WEB_ORIGIN: http://127.0.0.1:3100
+      SESSION_TTL_MINUTES: "60"
+      COOKIE_SECURE: "false"
+      APP_ENV: test
+      FRONTEND_DIR: ${{ github.workspace }}/.release-frontend/standalone
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - name: Install frontend lockfile
+        run: npm ci --ignore-scripts --no-audit --no-fund
+        working-directory: apps/web
+      - name: Cache Playwright Chromium
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('apps/web/package-lock.json') }}
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+        working-directory: apps/web
+      - name: Download built frontend
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-${{ github.sha }}
+          path: .release-frontend
+      - name: Extract frontend production build
+        run: tar -xzf .release-frontend/frontend-build.tar.gz -C .release-frontend
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: apps/api/requirements-dev.lock
+      - name: Install locked backend and test dependencies
+        run: python -m pip install -r apps/api/requirements-dev.lock
+      - name: Apply identity migration to disposable E2E database
+        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f apps/api/migrations/0001_auth_identity.sql
+      - name: Run live browser authentication smoke
+        run: python scripts/run_live_e2e.py
+      - name: Upload live browser smoke report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-browser-test-report
+          path: apps/web/test-results/e2e/results.xml
+          if-no-files-found: ignore
+          retention-days: 14
+
+  hygiene:
+    name: Diff, environment, and secret hygiene
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out source and history
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Check changed lines for whitespace errors
+        env:
+          DIFF_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if [[ -z "$DIFF_BASE" || "$DIFF_BASE" =~ ^0+$ ]]; then
+            git diff-tree --check --root HEAD
+          else
+            git diff --check "${DIFF_BASE}...HEAD"
+          fi
+      - name: Verify environment files are ignored and templates are safe
+        run: |
+          git check-ignore -q .env
+          git check-ignore -q .env.local
+          if git check-ignore -q .env.example; then
+            echo ".env.example must remain visible to Git"
+            exit 1
+          fi
+          python - <<'PY'
+          import re
+          import subprocess
+          from pathlib import Path
+
+          names = subprocess.check_output(["git", "ls-files", "-z"]).decode().split("\0")
+          paths = [Path(name) for name in names if name]
+          forbidden = [p.as_posix() for p in paths if p.name in {".env", ".env.local", ".env.production"}
+                       or p.suffix.lower() in {".pem", ".key", ".p12", ".pfx"}]
+          if forbidden:
+              raise SystemExit("Tracked local credential/private-key paths found: " + ", ".join(forbidden))
+
+          secret_patterns = [
+              re.compile(rb"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----"),
+              re.compile(rb"\bAKIA[0-9A-Z]{16}\b"),
+              re.compile(rb"\bgh[pousr]_[A-Za-z0-9]{30,}\b"),
+              re.compile(rb"(?i)(?:api[_-]?key|access[_-]?token|client[_-]?secret)\s*[:=]\s*[\"']?[A-Za-z0-9_./+=-]{24,}"),
+          ]
+          hits = []
+          for path in paths:
+              if path.as_posix() == ".env.example" or not path.is_file() or path.stat().st_size > 2_000_000:
+                  continue
+              content = path.read_bytes()
+              if b"\0" in content:
+                  continue
+              if any(pattern.search(content) for pattern in secret_patterns):
+                  hits.append(path.as_posix())
+          if hits:
+              raise SystemExit("Credential-like content found in tracked files: " + ", ".join(hits))
+          print("Tracked paths and text files passed basic credential hygiene checks.")
+          PY
+
+  dependency-security:
+    name: Dependency vulnerability audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+      - name: Audit frontend lockfile
+        run: npm audit --audit-level=low
+        working-directory: apps/web
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install pinned Python security tools
+        run: python -m pip install --disable-pip-version-check pip-audit==2.10.1 bandit==1.9.4
+      - name: Audit backend runtime and development locks
+        run: python -m pip_audit -r apps/api/requirements-dev.lock
+      - name: Scan backend source for common unsafe patterns
+        run: bandit -q -r apps/api/app
+
+  release-package:
+    name: Package versioned application release
+    needs: [frontend, backend, hygiene, e2e, dependency-security]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Download standalone frontend build
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-${{ github.sha }}
+          path: .release-frontend
+      - name: Extract frontend production build
+        run: tar -xzf .release-frontend/frontend-build.tar.gz -C .release-frontend
+      - name: Restore frontend static assets for package assembly
+        run: |
+          mkdir -p apps/web/.next
+          cp -R .release-frontend/static apps/web/.next/static
+      - name: Assemble versioned application bundle
+        id: bundle
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+          else
+            VERSION="$(python3 -c 'import json; print(json.load(open("apps/web/package.json"))["version"])')"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          python3 scripts/package_release.py \
+            --frontend-dir .release-frontend/standalone \
+            --version "$VERSION" \
+            --commit-sha "$GITHUB_SHA" \
+            --output-dir dist
+          (cd dist && sha256sum --check "finsight-${VERSION}-${GITHUB_SHA:0:12}.tar.gz.sha256")
+      - name: Upload versioned release bundle and checksum
+        uses: actions/upload-artifact@v4
+        with:
+          name: finsight-${{ steps.bundle.outputs.version }}-${{ github.sha }}
+          path: |
+            dist/*.tar.gz
+            dist/*.sha256
+            dist/*.build-info.json
+          if-no-files-found: error
+          retention-days: 90

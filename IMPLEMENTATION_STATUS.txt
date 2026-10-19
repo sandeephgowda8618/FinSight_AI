@@ -1,0 +1,300 @@
+FIN-2 / FS-11-01 — Create reproducible repository and environment setup
+Status: PARTIAL
+Jira: FIN-2 (Sprint 1 — Foundation, active; 2 points per live Jira)
+Scope: Reproducible local setup, safe example configuration, startup documentation, and repository hygiene only.
+
+Baseline:
+- Branch: main. Existing supplied AGENTS.md, .gitignore, and project documents were untracked before this task and have been preserved.
+- No app, dependency manifests, migrations, tests, or CI workflow existed at baseline.
+- Source discrepancy: detailed backlog says FS-11-01 depends on FS-01-01 and estimates 3 points; four-sprint plan says 2 points. User authorized foundational parallel work. Jira FIN-2 has no dependency link; no Jira changes were made.
+
+Implementation summary:
+- Added minimal Next.js and FastAPI starter shells, pinned direct dependencies, startup instructions, safe `.env.example`, `.nvmrc`, and frontend ignore rules.
+- No authentication, health endpoint, database migrations, provider credentials, financial logic, or trading paths were added.
+
+Changed paths:
+- README.md
+- .gitignore
+- .nvmrc
+- .env.example
+- apps/api/requirements.txt
+- apps/api/requirements.lock
+- apps/api/app/__init__.py
+- apps/api/app/main.py
+- apps/web/package.json
+- apps/web/package-lock.json
+- apps/web/app/layout.js
+- apps/web/app/page.js
+- conversation.txt
+- IMPLEMENTATION_STATUS.txt
+- SPRINT_1_TEST_EXECUTION_STATUS.txt
+
+Commands and tests:
+- Baseline inspection: `git status --short --branch`, `git diff --stat`, `git branch --show-current`, `rg --files`, and source-document text extraction. Result: initial tracked tree was README.md; supplied project materials were untracked; no app or test tooling existed.
+- Test execution record: `SPRINT_1_TEST_EXECUTION_STATUS.txt` contains actual results for the two FIN-2 cases; other Sprint 1 cases remain NOT RUN.
+- 2026-10-18: `npm install --ignore-scripts --no-audit --no-fund` generated the lockfile; `npm ci --no-audit --no-fund` passed in both `apps/web` and the disposable clean snapshot.
+- npm reported that sharp's install script was not approved by its install-scripts policy. The current starter does not use image optimization; build and server smoke checks passed without approving that script.
+- 2026-10-18: `python3 -m venv .venv` passed. The first `.venv/bin/python -m pip install -r apps/api/requirements.txt` attempt failed on sandbox DNS; the approved elevated retry passed. The disposable snapshot installed `apps/api/requirements.lock` successfully.
+- 2026-10-18: Initial `npm run build` failed with EPERM while Next.js wrote user-level configuration. `NEXT_TELEMETRY_DISABLED=1 npm run build` passed in the working tree and disposable snapshot.
+- 2026-10-18: `.venv/bin/python -m compileall -q apps/api/app` and `.venv/bin/python -m pip check` passed.
+- 2026-10-18: API and web production servers started from the disposable snapshot. `curl -fsS http://127.0.0.1:8000/` returned the expected welcome JSON; `curl -fsS http://127.0.0.1:3000/` returned the FinSight AI page heading. Servers were stopped after the checks.
+- 2026-10-18: TC_ENV_002 static placeholder, secret-pattern, Git-ignore, tracked-history, and sentinel checks passed; details are in SPRINT_1_TEST_EXECUTION_STATUS.txt.
+- 2026-10-18: test-record integrity check confirmed all 54 source-plan test IDs are represented: TC_ENV_001 BLOCKED, TC_ENV_002 PASS, and the remaining 52 NOT RUN.
+
+Unresolved acceptance criteria / blockers:
+- TC_ENV_001 remains BLOCKED overall: startup/install passed in a disposable snapshot assembled from the worktree, but this was not a Git clone. The FIN-13 identity migration now exists, but no clean-clone verification has been performed.
+- CI and independent code review have not been performed. Do not mark VERIFIED COMPLETE until the remaining applicable FIN-2 criteria and evidence are satisfied.
+
+FIN-2 review addendum (2026-10-18):
+- Reviewed the current README startup commands against `apps/api/app/main.py`, `apps/web/package.json`, and `.env.example`. The FIN-2 API module entry point and Next.js scripts matched; the API URL placeholder is the only original configuration variable. README has since been updated for FIN-13.
+- Frontend `package.json` and `package-lock.json` root package/dependency versions match; `npm ls --package-lock-only --depth=0` succeeded. Python direct pins matched the then-current lock before FIN-13 changes; the runtime and test locks have now been extended for FIN-13 dependencies.
+- `.gitignore` retains its existing OS, Python, env/secret, temp, IDE, database, and ML patterns, along with the existing Node/Next exclusions. No install-script permissions were granted.
+- npm's Sharp install-script warning does not affect current starter features: no `next/image` use or image-optimization path is present, and the production build passed without allowing Sharp's script.
+- The earlier disposable FIN-2 snapshot test is not a clean Git clone. Prepared a clone-based procedure in `conversation.txt`; it cannot be represented as executed evidence because the required revision is uncommitted and Git status/diff commands time out in the current workspace.
+- Review limitation: repeated `git status`/`git diff` calls (including with fsmonitor disabled) did not return within 30 seconds. No immutable source documents were targeted by any edits in this task, but the requested actual Git diff/path check remains to be rerun when Git responds.
+
+FIN-13 / FS-01-01 — Authenticate and manage sessions
+Status: PARTIAL
+Jira: FIN-13 (Sprint 1 — Foundation; no Jira changes made)
+Reviewed requirements: SRS FR-P1-01..04, FR-P1-06, FR-P1-08 and NFR-P1-01..03/05; canonical identity DDL `Database/schema (1).sql` (`roles`, `users`, `auth_sessions`); backlog FS-01-01 page 2; test-plan management cases TC_AUTHN_001..005 and TC_AUTHZ_003.
+
+Implementation summary:
+- Added FastAPI login, logout, and protected `/auth/me` endpoints; generic errors; Argon2id password verification including a dummy hash check for unknown accounts; opaque random session cookie with only its SHA-256 digest persisted; revocation and configurable expiry/inactivity checks; strict configured CORS origin and Origin checks on mutations.
+- Added a minimal, versioned PostgreSQL migration for only canonical `roles`, `users`, and `auth_sessions` identity records. It was applied only to a disposable PostgreSQL cluster.
+- Added a local administrator/DB-access-controlled account provisioning CLI; there is no public registration endpoint.
+- Integrated the Next.js login/logout/session display using credentialed API requests and accessible labels/focus/error status.
+- Updated the safe environment template and README with auth flow, migration, provisioning, local test setup, and production cookie guidance.
+
+Changed paths:
+- `.env.example`, `README.md`
+- `apps/api/app/auth.py`, `apps/api/app/database.py`, `apps/api/app/main.py`, `apps/api/app/provision_user.py`
+- `apps/api/migrations/0001_auth_identity.sql`, `apps/api/tests/test_auth.py`
+- `apps/api/requirements.txt`, `apps/api/requirements.lock`, `apps/api/requirements-dev.txt`, `apps/api/requirements-dev.lock`, `pytest.ini`
+- `apps/web/app/page.js`
+- `conversation.txt`, `IMPLEMENTATION_STATUS.txt`, `SPRINT_1_TEST_EXECUTION_STATUS.txt`
+- No Jira modifications; no changes were made to source SQL/PDFs/diagrams/original test plans by the implementation edits.
+
+Commands and observed results:
+- `.venv/bin/python -m pip install -r apps/api/requirements-dev.txt`: initial sandbox attempt failed on DNS; approved retry installed the pinned dependencies successfully.
+- `initdb -D /private/tmp/finsight-fin13-pg -A trust --no-locale -E UTF8`: initial sandbox attempt failed on shared memory; approved retry initialized a fresh disposable cluster successfully.
+- `pg_ctl ... start`, `createdb ... finsight`, and `psql ... -f apps/api/migrations/0001_auth_identity.sql`: disposable server started and migration completed (`BEGIN`, three tables/indexes, `COMMIT`).
+- `DATABASE_URL=postgresql://sandeeph@127.0.0.1:55439/finsight .venv/bin/python -m pytest -q apps/api/tests`: final result 8 passed; 5 deprecation warnings (Starlette AnyIO alias and per-request test cookies). Earlier attempts exposed fixture/import/logout issues, which were corrected before the final passing run.
+- `.venv/bin/python -m compileall -q apps/api/app apps/api/tests`: passed.
+- `.venv/bin/python -m pip check`: passed, no broken requirements.
+- `NEXT_TELEMETRY_DISABLED=1 npm --prefix apps/web run build`: passed.
+- Dependency inspection: `npm ls --package-lock-only --depth=0` passed; frontend lock root versions match manifest. No image component is used; build passed without enabling the Sharp install script.
+- Git status/diff review commands timed out; see FIN-2 review addendum and Q-003 in `conversation.txt`.
+- 2026-10-18 final verification: `DATABASE_URL=postgresql://sandeeph@127.0.0.1:55439/finsight .venv/bin/python -m pytest -q apps/api/tests` passed (8 tests, 5 deprecation warnings) against the disposable PostgreSQL cluster. `NEXT_TELEMETRY_DISABLED=1 npm run build` passed. `.venv/bin/python -m compileall -q apps/api/app apps/api/tests` and `.venv/bin/python -m pip check` passed (no broken requirements; pip cache ownership warning only).
+- 2026-10-18 TC_AUTHN_006: synthetic random credentials/session token inserted in disposable PostgreSQL, `pg_dump` scanned in memory; plaintext password and token absent, stored password/session digests present. Synthetic user deleted and temporary dump removed. Login test also checks captured logs/stdout/stderr and response for sensitive values. PASS for these exercised checks.
+- 2026-10-18 TC_AUTHN_007 remains BLOCKED: no deployed HTTPS endpoint was available. Local test proves only that `COOKIE_SECURE=true` sets the Secure cookie attribute, not deployment transport enforcement.
+- Re-read SRS FR-P1-03/04: because password authentication is enabled, password recovery is required by the SRS and is not implemented; administrator-controlled invitation workflow is likewise not implemented. See Q-004 and Q-005; no acceptance claim is made pending user decisions.
+
+Test execution: detailed statuses and evidence are recorded in `SPRINT_1_TEST_EXECUTION_STATUS.txt`. TC_AUTHN_001, TC_AUTHN_002, TC_AUTHN_003, and the shared session-expiry behavior in TC_AUTHZ_003 passed against disposable PostgreSQL. TC_AUTHN_005 is BLOCKED because the full administrator invitation lifecycle is not implemented. TC_AUTHN_006 passed the disposable database dump/log/API privacy checks recorded below; TC_AUTHN_007 is BLOCKED pending deployed HTTPS verification. TC_AUTHN_004 is BLOCKED pending the SRS-required password recovery scope/delivery decision.
+
+Remaining acceptance criteria / blockers:
+- Decide whether trusted local database-operator provisioning satisfies onboarding or authorize application-admin invitations; separately decide whether to implement password recovery and approve its delivery approach. See Q-004 and Q-005 in `conversation.txt`.
+- Deployed HTTPS verification is blocked pending an HTTPS deployment/endpoint; local secure-cookie behavior alone is insufficient. Role/permission administration, authentication event/audit recording, MFA, rate limiting, and broader auth cases remain unverified against SRS-wide requirements.
+- Run the true clean-clone verification and final Git status/diff review when Git metadata responds and the authorized revision is cloneable. Record exact immutable-path diff evidence.
+- CI, independent code review, deployed configuration, and final Definition of Done have not been completed. Do not mark FIN-13 VERIFIED COMPLETE or Done.
+
+FIN-73 / FS-11-02 — Run CI quality gates on every pull request
+Status: PARTIAL
+Jira: FIN-73 (Sprint 1; no Jira changes made)
+Scope: GitHub Actions quality gates for the existing Next.js frontend and FastAPI backend.
+
+Implementation summary:
+- Added `.github/workflows/ci.yml` triggered on pull requests and pushes to `main`, with read-only repository permission and concurrency cancellation.
+- Frontend job installs from `package-lock.json` using `npm ci` and runs the Next.js production build.
+- Backend job provisions disposable PostgreSQL 16 with test-only credentials, checks runtime direct pins against the lock, installs `requirements-dev.lock`, runs `pip check`, applies only the identity migration, compiles Python, and runs the API tests.
+- Hygiene job runs `git diff --check`, verifies local `.env` ignore behavior and `.env.example` visibility, and scans tracked paths/text for common credential and private-key patterns.
+- Jobs use pinned Node 22 / Python 3.12, dependency caches, bounded timeouts, and default fail-on-error behavior; no `continue-on-error` is set. No production credentials or app dependencies added.
+
+Changed paths for this task:
+- `.github/workflows/ci.yml`
+- `conversation.txt`, `IMPLEMENTATION_STATUS.txt`, `SPRINT_1_TEST_EXECUTION_STATUS.txt`
+- `apps/api/tests/test_auth.py` (FIN-13 verification hardening: random synthetic password and captured output/log assertions)
+
+Commands and observed results:
+- `ruby -ryaml -e '...'`: PASS; workflow YAML parsed and expected three jobs and event triggers were present. GitHub-specific expressions/action schema were not evaluated by this parser.
+- `ruby -ryaml -ropen3 -e '...'`: PASS; all inline `run` blocks passed `bash -n` syntax validation.
+- `npm ci --no-audit --no-fund` (from `apps/web`): PASS, 22 packages installed; npm warned that Sharp's install script is not approved. No script approval was added. The current frontend has no image optimization use.
+- `npm ls --package-lock-only --depth=0` (from `apps/web`): PASS; installed lockfile root dependencies match the manifest.
+- Workflow backend direct-pin comparison: PASS; every runtime requirement pin is present in `requirements.lock` (the psycopg binary extra maps to both locked distributions).
+- `NEXT_TELEMETRY_DISABLED=1 npm run build` (from `apps/web`): PASS; production pages generated.
+- `.venv/bin/python -m compileall -q apps/api/app apps/api/tests`: PASS.
+- `.venv/bin/python -m pip check`: PASS; no broken requirements (pip cache ownership warning only).
+- `DATABASE_URL=... .venv/bin/python -m pytest -q apps/api/tests`: PASS, 8 tests against disposable PostgreSQL (5 deprecation warnings).
+- Disposable synthetic `pg_dump` privacy scan: PASS; no plaintext synthetic password or session token in dump; temporary dump removed and synthetic account deleted.
+- `git status --short --branch` did not return within the observed wait; prior `git status`/`git diff` calls also timed out. No Git metadata was reinitialized or cleaned. Full actual diff/path review remains incomplete.
+- No workflow run occurred on GitHub; this task does not commit or push. GitHub Action runtime behavior, branch protection/required-check enforcement, and failure propagation through an actual PR run remain unverified.
+
+Remaining acceptance criteria / blockers:
+- Run this workflow on a GitHub pull request and a push to `main`; inspect all three jobs, including a safe negative check in a disposable branch/PR if validating required-check failure propagation.
+- Configure/verify required status checks in GitHub repository rules if merge blocking is required. No remote settings were changed.
+- Resolve Git timeout and review `git status --short --branch`, full diff, `git diff --check`, and immutable source paths. Do not claim full repository review until then.
+- Keep FIN-73 PARTIAL until these GitHub-side and Git review checks are evidenced. No Jira status change.
+
+FIN-74 / FS-11-03 — Build and deploy a versioned release artifact
+Status: PARTIAL
+Jira: FIN-74 (Sprint 1; no Jira changes made)
+Requirements reviewed: four-sprint plan FS-11-03; detailed backlog FS-11-03 acceptance criteria; Technical Design sections 17.2 (release pipeline) and 17.3 (deployment/schema operations). Original PDFs and SQL remain read-only.
+
+Implementation summary:
+- Extended the existing `.github/workflows/ci.yml`; there is one pipeline, on pull requests, pushes to `main`, and version tags `v*`. A release-package job runs only after frontend, backend, and hygiene jobs pass. CI uploads a `finsight-<version>-<full-SHA>` artifact with archive, SHA-256 checksum, and timestamped build-info metadata. Tag pushes use the tag version; other builds use `apps/web/package.json` version. The GitHub workflow artifact is retained for 90 days.
+- Configured Next.js standalone output and commit-based `generateBuildId`. Added `/api/runtime-config` so the frontend reads the non-secret `API_BASE_URL` at server runtime and one frontend bundle can be promoted across environments. Added safe `apps/web/.env.example`; root `.env.example` remains placeholders only.
+- Added `scripts/package_release.py`, a standard-library packager that bundles standalone frontend output, backend app source, the pinned runtime lock, the current versioned identity migration, and release instructions. Archive timestamps/ownership/order are normalized. A sibling `.build-info.json` records packaging time, version, commit SHA (when available), and the archive digest; `.sha256` verifies the archive.
+- Added deployment/rollback instructions in `docs/release/RELEASE_README.md` and linked them from README. No hosting target, staging environment, deployment credentials, or protected deployment environment is configured, so no deploy workflow or deployment was added. Rollback documentation keeps the database forward unless a reviewed down migration is approved and tested.
+
+Changed paths for this task:
+- `.github/workflows/ci.yml`, `.env.example`, `README.md`
+- `apps/web/.env.example`, `apps/web/next.config.js`, `apps/web/app/page.js`, `apps/web/app/api/runtime-config/route.js`
+- `scripts/package_release.py`, `docs/release/RELEASE_README.md`
+- `SPRINT_1_TEST_EXECUTION_STATUS.txt`, `IMPLEMENTATION_STATUS.txt`, `conversation.txt`
+- Generated local artifact files under ignored `dist/`: `finsight-0.1.0-local.tar.gz`, its `.sha256`, and `.build-info.json`.
+
+Commands and actual results (2026-10-18):
+- `npm ci --no-audit --no-fund` in `apps/web`: PASS (22 packages); npm warned Sharp's install script is not approved. No install script was approved.
+- `NEXT_TELEMETRY_DISABLED=1 npm run build` in `apps/web`: PASS twice; Next.js standalone output and dynamic `/api/runtime-config` route produced. The workflow sets `GITHUB_SHA` for a commit-stable Next build ID.
+- `python3 -m py_compile scripts/package_release.py`: PASS.
+- `python3 scripts/package_release.py --frontend-dir apps/web/.next/standalone --version 0.1.0-local --output-dir dist`: PASS twice after the final documentation updates. `cmp` confirmed repeated packaging of the same build tree was byte-identical. Bundle size 10 MB; final SHA-256 `d5dfade1f7cec62dd4c1969d04e6a9dfda34f35c30419c6f56866625f91627de`. The local bundle metadata correctly has `commit_sha: null` because the implementation is uncommitted.
+- `cd dist && shasum -a 256 -c finsight-0.1.0-local.tar.gz.sha256`: PASS. `.build-info.json` digest matched a fresh SHA-256 calculation.
+- Extracted the archive under `/private/tmp/finsight-release-run`, started its standalone server with `API_BASE_URL=https://api.example.invalid`, and queried `/api/runtime-config` and `/`: PASS; it returned the configured API origin and served the FinSight page. Server stopped after smoke test.
+- `.venv/bin/python -m pytest -q apps/api/tests` with disposable PostgreSQL at `127.0.0.1:5432/finsight`: PASS, 8 tests, 5 deprecation warnings. The disposable database server was stopped after the run.
+- `.venv/bin/python -m compileall -q apps/api/app scripts/package_release.py` and `.venv/bin/python -m pip check`: PASS; no broken requirements (pip cache ownership warning only).
+- Ruby YAML parse plus `bash -n` on all workflow `run` blocks: PASS; PR, `main`, and `v*` tag triggers and all four jobs found. No GitHub-hosted workflow execution occurred.
+- `git status --short --branch`: PASS when retried; `main...origin/main`, README modified, and expected project files remain untracked as before. `git diff --stat`: only tracked README changes (103 insertions, 2 deletions) because the rest of the supplied project/work has not been committed. `git diff --check`: PASS for tracked changes. A separate trailing-whitespace scan passed for nine changed/reviewed text files. `git check-ignore -v` confirmed `dist/`, `.next`, `node_modules`, `.env`, and `.env.local` are ignored.
+- No source PDF, SQL, diagram, or original test-plan file was written by this task. Git cannot produce a tracked diff for the pre-existing untracked source directories; those remain present and untouched.
+
+Remaining acceptance criteria / blockers:
+- FIN-74 is PARTIAL. No committed candidate SHA exists, so the local artifact is versioned `0.1.0-local` but its metadata has a null commit SHA. Build CI on a committed version tag to produce a full-SHA release artifact.
+- No deployment target or protected environment exists. Choose/configure hosting, staging/production environment protection, secrets manager, TLS, least-privileged database roles, backup/RTO/RPO, monitoring/readiness, and migration owner before deployment can be automated. No purchase or credentials are requested.
+- No previous known-good deployed release exists, so a deployment rollback was documented but not executed. Preserve verified release archives/checksums for rollback.
+- GitHub Actions runtime and its artifact retention are statically validated only; confirm by running the workflow on GitHub after the changes are committed/pushed by an authorized actor.
+- TC_BUILD_001 and TC_BUILD_002 remain BLOCKED for the missing committed SHA and hosting/prior release respectively. No Jira changes, commits, or pushes were made.
+
+FIN-2 / FIN-13 / FIN-73 / FIN-74 — GitHub publication request
+Status: BLOCKED
+Branch / commit / pull request: None created. Current local branch/commit cannot be safely established; no CI run is available.
+
+Observed 2026-10-18:
+- `git status --short --branch`, `git remote -v`, and `git branch --show-current && git log -1 --oneline --decorate` each stalled without output for 10 seconds and were interrupted (exit 130).
+- `GIT_OPTIONAL_LOCKS=0 GIT_TRACE=1 git -c core.fsmonitor=false -c core.untrackedCache=false status --short --branch --untracked-files=no` entered the built-in `status` command in the trace, then stalled and was interrupted.
+- Read-only inspection found `.git/HEAD` contains `ref: refs/heads/main`; `.git/config` contains origin URL `https://github.com/sandeephgowda8618/FinSight_AI.git`. Listing showed `.git/refs/heads/main` exists, but opening that ref to read the commit SHA also stalled. No Git lock files were reported by the `.git` lock-file search.
+- No branch creation, staging, commit, push, PR, or GitHub Actions validation was attempted after this failure. Git metadata remains intact. Required files were not staged and local coordination records remain excluded from publication.
+- The precise blocker and recovery action are recorded as Q-007 in `conversation.txt`. After Git ref access is healthy, repeat status/remote/branch/log inspection, review the explicit source allowlist and secret scan, stage only reviewed paths, inspect `git diff --cached`, and only then publish a feature branch and PR.
+
+Additional bounded diagnostics (2026-10-18): `ps -axo pid,ppid,state,etime,command | rg '[g]it( |$)|git-remote|git-index|git status'` was denied (`operation not permitted`), so active Git process state is unknown. `df -h` reports 100% filesystem capacity, 3.0 GiB available of 460 GiB. `git --version` succeeded: Apple Git 2.54.0. A five-second bounded `git config --show-origin --get-regexp 'fsmonitor|untrackedcache'` timed out. Python metadata probing read `.git/HEAD`, then stalled while reading `.git/config` despite successful `stat`; earlier listings showed `.git/index` (137 bytes), `.git/refs/heads/main` (41 bytes), `.git/packed-refs` (112 bytes), and no reported `*.lock` files. No diagnosis or repair is claimed. No files under `.git` were changed. Stop condition remains active: do not stage or publish until repository state/ref access is verifiably responsive. Recommended next action: free filesystem capacity and investigate local filesystem/metadata I/O; if ref reads still stall, first establish a separate verified backup/healthy clone that preserves all tracked and untracked worktree content.
+
+FIN-75 / FS-11-04 — TDD and automated test suites
+Status: PARTIAL
+Summary: Added isolated backend unit/error/configuration tests, a PostgreSQL identity constraint test, deterministic Playwright UI interaction tests, and a live browser smoke runner that starts the current FastAPI and Next.js application and provisions/deletes one random synthetic user. CI now runs browser UI tests, backend unit and PostgreSQL integration tests with coverage, and the live browser smoke using a fresh PostgreSQL service; the release packaging job waits for those checks. No authentication behavior or unrelated application feature was reimplemented.
+Changed paths:
+- `.gitignore`, `README.md`, `apps/api/requirements-dev.txt`, `apps/api/requirements-dev.lock`
+- `apps/api/tests/test_auth_unit.py`, `apps/api/tests/test_identity_constraints.py`
+- `apps/web/package.json`, `apps/web/package-lock.json`, `apps/web/playwright.ui.config.js`, `apps/web/playwright.e2e.config.js`, `apps/web/tests/ui/auth.spec.js`, `apps/web/tests/e2e/auth.spec.js`
+- `scripts/run_live_e2e.py`, `.github/workflows/ci.yml`
+- `SPRINT_1_TEST_EXECUTION_STATUS.txt`, `IMPLEMENTATION_STATUS.txt`, `conversation.txt`
+Commands/results (2026-10-18):
+- `.venv/bin/python -m pytest -q apps/api/tests/test_auth_unit.py`: PASS, 14 tests; first attempt had one invalid synthetic test-domain input (422 instead of exercising DB failure); changed it to `example.com`, then all 14 passed.
+- `DATABASE_URL=postgresql://sandeeph@127.0.0.1:55439/finsight .venv/bin/python -m pytest -q apps/api/tests`: PASS, 22 tests before adding database constraint coverage. The sandboxed attempt failed with `Operation not permitted` for localhost; rerun with approved local database access passed.
+- Created fresh disposable database `finsight_fin75` inside the existing disposable PostgreSQL cluster; `psql postgresql://sandeeph@127.0.0.1:55439/finsight_fin75 -v ON_ERROR_STOP=1 -f apps/api/migrations/0001_auth_identity.sql`: PASS. `DATABASE_URL=postgresql://sandeeph@127.0.0.1:55439/finsight_fin75 .venv/bin/python -m pytest -q apps/api/tests/test_identity_constraints.py`: PASS, 1 test; verified case-insensitive email uniqueness and user/session cascade.
+- Stopped the disposable PostgreSQL cluster after verification. The newly created `finsight_fin75` database remains in that stopped cluster with the migration schema and no synthetic test accounts; it was not dropped.
+- `DATABASE_URL=postgresql://sandeeph@127.0.0.1:55439/finsight_fin75 .venv/bin/python -m pytest -q --cov=app --cov-report=term --cov-report=xml apps/api/tests`: PASS, 23 tests. Coverage: 80% total; `auth.py` 100%, `main.py` 95%, `database.py` 91%, `provision_user.py` 0%. XML report at ignored local `coverage.xml`; provisioning CLI gap remains explicit.
+- `npm ci --no-audit --no-fund`: PASS, lockfile install. npm reported Sharp's install-script warning; no script approval was granted. Initial install summary reported 3 advisories (2 high, 1 critical); the advisories were not triaged in this scoped task.
+- `npm ls --package-lock-only --depth=0`: PASS; versions match package manifest/lock. `.venv/bin/python -m pip check`: PASS; no broken Python requirements. Direct dev requirement to lock comparison: PASS.
+- `npm run test:ui`: PASS, 2 Playwright browser interaction tests; JUnit evidence at ignored `apps/web/test-results/ui/results.xml`. Initial sandbox run failed local bind with `EPERM`; rerun with approved local process/network permission passed. After clean npm install, the same 2 tests passed again.
+- `DATABASE_URL=postgresql://sandeeph@127.0.0.1:55439/finsight .venv/bin/python scripts/run_live_e2e.py`: PASS twice in development mode against live FastAPI/Next/PostgreSQL and two separate generated synthetic accounts; each account is deleted in `finally`. `DATABASE_URL=postgresql://sandeeph@127.0.0.1:55439/finsight FRONTEND_DIR=/Users/sandeeph/Documents/NVDIA_Play_Book/FinSight_AI/apps/web/.next/standalone .venv/bin/python scripts/run_live_e2e.py` production smoke initially timed out because standalone output lacked `.next/static`; fixed the smoke runner to restore sibling static assets and corrected CI artifact packaging. Rerun against production standalone: PASS, 1 browser test.
+- `NEXT_TELEMETRY_DISABLED=1 npm run build`: PASS.
+- `.venv/bin/python -m compileall -q apps/api/app apps/api/tests scripts/run_live_e2e.py`: PASS.
+- JUnit E2E evidence at ignored `apps/web/test-results/e2e/results.xml`; coverage XML at ignored `coverage.xml`. CI uploads these reports when the corresponding jobs run.
+- Ruby YAML parse and PyYAML parse + `bash -n` for all 23 workflow run blocks: PASS. No GitHub Actions run occurred; CI changes are locally validated only.
+- Required post-change `git status --short --branch && git diff --check && git diff --stat` produced no output within 10 seconds and remained stalled. Per the separate Git recovery blocker, no further Git diagnosis was performed; repository diff/status review is incomplete. No commit, push, reset, or ref repair was attempted.
+Remaining acceptance criteria/blockers:
+- `TC_DB_001` remains BLOCKED beyond the identity/session schema: the test plan also names API credentials, audit, execution, health tables and migration-runner repeatability, which are not implemented in the current codebase and are outside this story's feature scope.
+- `TC_INT_001` remains BLOCKED for configuration-version/audit persistence and allowed/denied configuration flows (not implemented). `TC_SYS_001` remains BLOCKED for dashboard/settings, health and Ollama flows (not implemented). Password recovery, admin invitations and deployed HTTPS remain the previously recorded FIN-13 gaps and are untouched.
+- `TC_COV_001` passed for generated/visible coverage evidence with a follow-up gap recorded: `provision_user.py` is 0% covered. No overall threshold is established in the source.
+- CI has not run on GitHub and required branch protection is not verified. FIN-75 is not marked complete.
+
+FIN-76 / FS-11-05 — Measure line/branch coverage and test quality (2026-10-18)
+Status: PARTIAL
+Summary: Enabled branch coverage in the existing backend CI commands, included the provisioning CLI tests, and configured XML plus HTML coverage artifact upload with missing-report failure. Added focused tests for session-route database outages, unauthenticated access before database use, required database configuration, idempotent logout, and the provisioning module CLI entry point. No frontend coverage framework was added because existing Playwright interaction tests do not instrument source coverage.
+Changed paths:
+- `.github/workflows/ci.yml`, `README.md`
+- `apps/api/tests/test_auth.py`, `apps/api/tests/test_auth_unit.py`, `apps/api/tests/test_provision_user.py`
+- `IMPLEMENTATION_STATUS.txt`, `conversation.txt`, `SPRINT_1_TEST_EXECUTION_STATUS.txt`
+Commands/results (2026-10-18):
+- `.venv/bin/python -m pytest -q apps/api/tests/test_provision_user.py apps/api/tests/test_auth_unit.py`: PASS, 32 tests before the later CLI module-entry and route failure-path additions.
+- Initial full coverage attempt without elevated local-network access: FAILED to reach PostgreSQL (`Operation not permitted`); coverage was incomplete and not used as acceptance evidence. Rerun with approved access passed.
+- CI-equivalent unit command with `--cov-branch --cov-report=term-missing --cov-report=xml:coverage.xml --cov-report=html:htmlcov` across `test_auth_unit.py` and `test_provision_user.py`: PASS, 37 tests.
+- CI-equivalent PostgreSQL integration command with `--cov-branch --cov-append` across `test_auth.py` and `test_identity_constraints.py`: PASS, 10 tests. Combined suite: 47 passed; final cumulative coverage 156/156 lines (100%) and 28/28 branches (100%). The integration process emitted the cumulative totals after appending unit data.
+- Reports: ignored local `coverage.xml` (machine-readable), `htmlcov/index.html` (human-readable), and `/tmp/finsight-coverage.json` (machine-readable coverage summary). These are generated output and were not added to the repository. No arbitrary coverage threshold was introduced.
+- Module line/branch coverage: `auth.py` 100%/100%, `database.py` 100%/100%, `main.py` 100%/100%, `provision_user.py` 100%/100%.
+- `python3 -c 'import yaml; yaml.safe_load(open(".github/workflows/ci.yml"))'`: PASS. The workflow uploads XML and HTML reports for 14 days and fails if no report exists. GitHub artifact upload/retention was not exercised remotely.
+- Playwright frontend coverage: NOT MEASURED. Existing tests use Playwright behavior checks without source instrumentation. Minimal future setup: add source instrumentation/reporting for client modules and connect it to the existing interaction suite; no frontend coverage percentage or threshold is claimed now.
+- Dependency advisory follow-up: previous npm install reported 3 advisories (2 high, 1 critical). Package-level triage was not performed here; recorded for FIN-77 in `conversation.txt`.
+Remaining acceptance criteria/blockers: FIN-76 remains PARTIAL pending GitHub Actions confirmation that the coverage artifact is uploaded/retained and a decision on whether frontend source-coverage instrumentation is required for acceptance. No Git, Jira, source artifact, or dependency changes were made in this task.
+
+FIN-77 / FS-11-06 — Security validation and dependency checks (2026-10-19)
+Status: PARTIAL
+Scope references: detailed backlog FS-11-06 (P0, 3 SP) and four-sprint plan (3 SP). Sprint 1 management plan maps this story to TC_ENV_002, TC_SEC_001, TC_SEC_002, TC_AUTHSEC_002, TC_AUTHN_006, TC_CFG_001, and TC_EXEC_002. Original references remain unchanged.
+Npm baseline and remediation:
+- Before: `npm audit --json` reported 3 vulnerable dependency nodes: 1 critical (`next@16.2.12`, direct), 2 high (`postcss@8.4.31`, transitive via Next; `sharp@0.34.5`, optional transitive via Next). npm groups severity by affected package, while each package has multiple GHSA findings.
+- Critical Next advisories: unauthenticated RCE on Windows-hosted servers (GHSA-p293-qw3h-jr36, `>=16.0.0 <16.3.3`); Image Optimization AVIF RCE (GHSA-2xp9-vwfh-vxw4, same range); `next/og` ImageResponse RCE (GHSA-vcvr-r3jv-pc5j, `>=16.2.0 <16.3.6`). Audit also reported Next SSRF (high; GHSA-cjq9-62q9-8jv4, `<16.3.8`) and lower-severity cache/information-disclosure findings.
+- `postcss@8.4.31` had high source-map file-read/path-traversal advisories (GHSA-6g55-p6wh-862q, `<=8.5.11`; GHSA-r28c-9q8g-f849, `<=8.5.17`) and moderate findings through `8.5.22`. `sharp@0.34.5` had three high inherited libvips/libheif/librsvg findings (GHSA-f88m-g3jw-g9cj `<0.35.0`; GHSA-rgj7-g3m4-5g8c `<0.35.4`; GHSA-wq5f-xc86-pv6w `<0.35.5`).
+- npm recommended non-major Next `16.4.2`. Updated `apps/web/package.json` and regenerated `package-lock.json` with `npm install --package-lock-only --ignore-scripts --save-exact next@16.4.2 --no-audit --no-fund`. Locked tree resolves `next@16.4.2`, `postcss@8.5.23`, `sharp@0.35.5`. Full and production-only audits now report 0 vulnerabilities; exact CI command `npm audit --audit-level=low` passed. App entry points contain no direct `next/image`, `ImageResponse`, or sourceMappingURL usage; this did not waive framework dependency risk.
+Python baseline and remediation:
+- `pip-audit` before changes found 14 advisory records (duplicated identifiers from the advisory feed) across 3 packages / 7 unique advisory IDs: Starlette `0.52.1` (5 unique issues: host-header URL reconstruction/CVE-2026-48710; Windows StaticFiles UNC SSRF/CVE-2026-48818; unconstrained HTTPEndpoint dispatch/CVE-2026-48817; form-limit bypass/CVE-2026-54283; malformed-path URL authority/CVE-2026-54282); pytest `8.4.2` (Unix pytest temp-directory issue/CVE-2025-71176); python-dotenv `1.2.1` (symlink-following arbitrary file overwrite/CVE-2026-28684). Scanner fix versions were Starlette `1.0.1`, `1.1.0`, `1.3.0`, and `1.3.1`; pytest `9.0.3`; python-dotenv `1.2.2`.
+- FastAPI `0.129.0` required Starlette `<1.0.0`. PyPI metadata was checked; `fastapi==0.133.0` was the earliest checked release to remove that upper bound. Updated direct pins to FastAPI `0.133.0`, Starlette `1.3.1`, python-dotenv `1.2.2`, and dev-only pytest `9.0.3`. The patched versions are recorded in runtime/dev manifests and locks. A disposable Python 3.12 environment resolved the lock; its `pip freeze` exactly matched `requirements-dev.lock`. `pip-audit` after changes reported no known vulnerabilities.
+CI/security changes:
+- Added `dependency-security` to `.github/workflows/ci.yml`: `npm audit --audit-level=low`, pinned `pip-audit==2.10.1`, audit of the full backend dev/runtime lock, and pinned `bandit==1.9.4` scan of `apps/api/app`. `release-package` now needs this job, so audit/tool failures block packaging. Existing secret/environment hygiene job remains. Frontend/e2e `npm ci` now uses `--ignore-scripts`; no install-script permissions were broadened or approved.
+- Changed paths: `.github/workflows/ci.yml`; `apps/web/package.json`, `apps/web/package-lock.json`; `apps/api/requirements.txt`, `apps/api/requirements.lock`, `apps/api/requirements-dev.txt`, `apps/api/requirements-dev.lock`; `IMPLEMENTATION_STATUS.txt`, `conversation.txt`, `SPRINT_1_TEST_EXECUTION_STATUS.txt`.
+Commands and outcomes (2026-10-19):
+- `npm audit --json` before remediation: exit 1, 3 vulnerable package nodes (critical 1/high 2). `npm audit --json` after: exit 0, 0 advisories. `npm audit --omit=dev --json` after: exit 0, 0 advisories. `npm audit --audit-level=low`: PASS, 0 vulnerabilities.
+- `npm install --package-lock-only --ignore-scripts --save-exact next@16.4.2 --no-audit --no-fund`: PASS. `npm ci --ignore-scripts --no-audit --no-fund`: PASS. `npm ls next postcss sharp --all`: versions match patched tree. `npm ls --package-lock-only --depth=0`: PASS.
+- `NEXT_TELEMETRY_DISABLED=1 npm run build`: PASS on Next 16.4.2. `npm run test:ui`: PASS, 2 tests. First sandbox run could not bind 127.0.0.1:3100 (`EPERM`); rerun with approved loopback access passed.
+- `PYTHONPATH=/private/tmp/finsight-pip-audit python3 -m pip_audit -r apps/api/requirements-dev.lock --format=json` before changes: exit 1, 14 findings across 3 packages. After lock update: `python -m pip_audit -r apps/api/requirements-dev.lock --format=json`: PASS, no known vulnerabilities. Scanner was installed only under `/private/tmp`; no scanner dependency was added to project requirements.
+- `.venv/bin/python -m pip install -r apps/api/requirements-dev.lock`: PASS. `.venv/bin/python -m pip check`: PASS. Temporary lock-resolution environment `pip check`: PASS; full `pip freeze` matched the development lock exactly. Direct runtime/dev pin-to-lock consistency check: PASS.
+- `bandit -q -r apps/api/app`: PASS, no findings. Local credential-pattern scan across application code/config reported no matches; only `.env.example` files were present, both with placeholders. The full Git tracked/staged/history check was not repeated.
+- Focused regression: `DATABASE_URL=postgresql://sandeeph@127.0.0.1:55439/finsight_fin75 APP_ENV=test COOKIE_SECURE=false .venv/bin/python -m pytest -q apps/api/tests/test_auth_unit.py apps/api/tests/test_auth.py apps/api/tests/test_identity_constraints.py`: PASS, 38 tests against the disposable PostgreSQL database. Disposable PostgreSQL cluster was stopped after tests. Eight Starlette/httpx deprecation warnings appeared; no test failures.
+- PyYAML parsed the workflow after CI changes and verified `release-package` depends on `dependency-security`. No GitHub Actions run occurred; remote gate behavior and branch-protection enforcement remain unverified.
+Remaining blockers: FIN-77 remains PARTIAL. `TC_SEC_001` is BLOCKED pending a GitHub Actions execution. `TC_SEC_002` is BLOCKED because upload validation and RAG/prompt-context features are not implemented; no features were added. Rate limiting, password recovery, admin invitations, config-secret flows, and execution diagnostics remain outside this task and their tests were not run. No Git/Jira action, source-document change, or trading feature was performed.
+
+FIN-78 / FS-11-07 — Architecture, API, ADR, and compatibility documentation (2026-10-19)
+Status: PARTIAL
+Summary: Added a concise description of the runtime architecture that exists, implemented API contracts and status/error shapes, authentication flow, identity persistence, configuration boundaries, local test entry points, and practical compatibility rules. Explicitly labelled planned/absent target modules and product functionality. Added five ADRs describing established implementation/project-baseline decisions; no feature, schema, or dependency changes were made.
+Changed paths:
+- `docs/architecture/README.md`
+- `README.md`
+- `docs/architecture/adr/0001-modular-nextjs-fastapi.md`
+- `docs/architecture/adr/0002-postgresql-source-of-truth.md`
+- `docs/architecture/adr/0003-opaque-server-validated-sessions.md`
+- `docs/architecture/adr/0004-migrations-and-environment-configuration.md`
+- `docs/architecture/adr/0005-ci-quality-and-release-artifacts.md`
+- `IMPLEMENTATION_STATUS.txt`, `conversation.txt`, `SPRINT_1_TEST_EXECUTION_STATUS.txt`
+Requirements consulted: FIN-78 FS-11-07 backlog and four-sprint entries; technical design sections 4–5 (architecture/module boundaries); SRS NFR-G-22 and NFR-G-24 through NFR-G-27; schema/ERD canonical `roles`, `users`, and `auth_sessions` definitions; Sprint 1 management case TC_DOC_001. Source PDFs, reference SQL, diagrams, and original test plan were not changed.
+Verification (2026-10-19):
+- `PYTHONPATH=apps/api APP_ENV=test .venv/bin/python` with FastAPI `TestClient`: OpenAPI exposes `/auth/login`, `/auth/logout`, `/auth/me`; `LoginRequest` requires email/password and `UserView` has user_id/email/display_name. Invalid login payload returned 422 with `detail`; unauthenticated `/auth/me` returned 401 with `{"detail":"Authentication required"}`. Assertions passed. One Starlette/httpx TestClient deprecation warning was emitted.
+- Local Markdown-link check across the architecture page and five ADRs found zero missing relative links.
+- TC_DOC_001 recorded PASS based on contract/code inspection and the observed validation/authentication error responses. TC_TRACE_001 remains NOT RUN; it belongs to FS-11-08 and the full 23-entry bidirectional traceability audit was not performed.
+Remaining decisions/criteria: FIN-78 remains PARTIAL because the code has unprefixed API routes and no approved public API versioning/deprecation policy, and deployment migration ownership/general migration runner are not established. Documentation records these as unresolved rather than inventing a policy or claiming deployed compatibility. See Q-008 in `conversation.txt`. Git review was not attempted because repository Git responsiveness is a separately recorded blocker. No Jira, source-document, or application behavior changes were made.
+
+FIN-79 / FS-11-08 — SRS addendum and requirement traceability (2026-10-19)
+Status: PARTIAL
+Summary: Added a complete identifier-level SRS matrix for all 399 FR/NFR IDs and 10 DIR rules, plus a 72-alias story register cross-referenced to read-only live Jira mappings, four-sprint allocation, Jira acceptance criteria, Sprint 1 test IDs/results, implementation evidence and gaps. Jira issue descriptions and explicit Sprint 1 test-plan traceability together link 328 requirement rows to stories; 81 remain unmapped and are explicitly not assessed. 104 requirements have a supplied linked test; 305 do not. Added an SRS addendum for traceability/change control without revising the authoritative SRS. Release 2-only labels for FS-07-04 and FS-08-04 remain intact. SRS requirement ranges written in the test plan were expanded across their full ID intervals. The process story FS-11-09/FIN-80 has no direct SRS requirement ID and is explicitly recorded as such.
+Changed paths:
+- `docs/requirements/traceability-matrix.md`
+- `docs/requirements/traceability-requirements.csv` (409 rows)
+- `docs/requirements/traceability-stories.csv` (72 rows)
+- `docs/requirements/srs-addendum.md`
+- `scripts/validate_traceability.py`
+- `README.md` (links to the requirement records)
+- `SPRINT_1_TEST_EXECUTION_STATUS.txt` (TC_TRACE_001 only)
+- `IMPLEMENTATION_STATUS.txt`, `conversation.txt`
+Sources consulted read-only: SRS PDF (requirements and DIR inventory); detailed backlog PDF (72 source aliases and criteria); four-sprint plan; Sprint 1 management test inventory; current execution register; implementation/status and architecture notes; read-only live Jira query dated 2026-10-19. Original PDFs, source SQL, diagrams, and original test plans were not modified. No Jira changes, Git commands, application code, migrations, or secrets were involved.
+Verification (2026-10-19):
+- `python3 scripts/validate_traceability.py`: PASS; extracted 409 SRS IDs, 72 aliases, 54 test IDs; checked CSV inventories, valid test references, live Jira evidence markers, verified evidence fields, 23 Sprint 1 stories (22 with explicit SRS IDs; FS-11-09 process-story exception), Release 2 labels. Validator clearly states it does not query Jira.
+- `python3 -m py_compile scripts/validate_traceability.py`: PASS.
+- CSV counts: 409 requirements; 72 stories; 104 requirement rows linked to supplied tests; 305 without supplied test links. Requirement status counts: NOT ASSESSED 110; IMPLEMENTED — VERIFIED 6; NOT IMPLEMENTED 45; PARTIAL 15; PLANNED 233.
+- Local relative-link check across matrix, addendum, and root README: PASS, no missing relative links.
+- TC_TRACE_001: PASS based on verified 23 Sprint 1 aliases/Jira mappings, 22 explicit SRS-ID links with the FS-11-09 process exception, 54/54 source test cases linked to a catalog story, intact Release 2 labels, and visible gaps. TC_ENV_001 and TC_ENV_002 remain without execution rows and default to NOT RUN; all other unexecuted tests retain their prior states.
+Remaining criteria: FIN-79 remains PARTIAL. Product-owner decisions are required for 81 unmapped requirements and for Jira-only FIN-84–FIN-87 without source aliases; see Q-009 and Q-010 in `conversation.txt`. The supplied test plan covers Sprint 1, not full project-wide validation. No source-document or Git diff review was attempted; Git responsiveness remains the separately recorded blocker.
