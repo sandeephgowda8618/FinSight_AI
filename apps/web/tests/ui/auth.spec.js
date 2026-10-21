@@ -49,3 +49,13 @@ test("service outage is visible and the form remains usable", async ({ page }) =
   await expect(page.getByText("Authentication service is unavailable.")).toBeVisible();
   await expect(page.getByLabel("Email")).toBeVisible();
 });
+
+test("protected app routes redirect anonymous browsers while sign-in stays public", async ({ page }) => {
+  const response = await page.goto("/app/private-report");
+  expect(response.status()).toBe(200);
+  await expect(page).toHaveURL(/\/\?next=/);
+  await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
+
+  await page.goto("/");
+  await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
+});

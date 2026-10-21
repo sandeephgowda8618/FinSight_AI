@@ -30,6 +30,40 @@ def test_provision_user_requires_email_and_display_arguments(monkeypatch, capsys
     assert "Usage:" in capsys.readouterr().err
 
 
+def test_provision_user_platform_admin_is_explicit_opt_in(monkeypatch, capsys):
+    monkeypatch.setattr(sys, "argv", ["provision_user", "admin@example.test", "Synthetic Admin", "--platform-admin"])
+    values = iter(("synthetic-password", "synthetic-password"))
+    monkeypatch.setattr(provision_user.getpass, "getpass", lambda _prompt: next(values))
+
+    class Cursor:
+        statement = ""
+        parameters = None
+
+        def __enter__(self): return self
+        def __exit__(self, *_args): return None
+        def execute(self, statement, parameters):
+            self.statement, self.parameters = statement, parameters
+
+    cursor = Cursor()
+    class Connection:
+        def __enter__(self): return self
+        def __exit__(self, *_args): return None
+        def cursor(self): return cursor
+
+    monkeypatch.setattr(provision_user, "connect", Connection)
+    assert provision_user.main() == 0
+    assert "role_key = %s AND scope = 'platform'" in cursor.statement
+    assert cursor.parameters[-1] == "platform_admin"
+    output = capsys.readouterr()
+    assert "synthetic-password" not in output.out + output.err
+
+
+def test_provision_user_rejects_unknown_role_argument(monkeypatch, capsys):
+    monkeypatch.setattr(sys, "argv", ["provision_user", "analyst@example.test", "Synthetic User", "--operator"])
+    assert provision_user.main() == 2
+    assert "Usage:" in capsys.readouterr().err
+
+
 @pytest.mark.parametrize(
     "email, display_name",
     [
@@ -99,8 +133,9 @@ def test_provision_user_hashes_and_upserts_without_printing_password(monkeypatch
     assert "User provisioned" in output.out
     assert "synthetic-initial-password" not in output.out + output.err
     assert "ON CONFLICT ((lower(email))) DO UPDATE" in cursor.statement
-    normalized_email, password_hash, display_name = cursor.parameters
+    normalized_email, password_hash, display_name, role_key = cursor.parameters
     assert normalized_email == "analyst@example.com"
     assert display_name == "Synthetic Analyst"
+    assert role_key is None
     assert password_hash.startswith("$argon2id$")
     assert password_hash != "synthetic-initial-password"

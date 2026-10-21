@@ -93,10 +93,54 @@ def test_protected_route_rejects_missing_session_before_database_access(monkeypa
 
 
 @pytest.mark.parametrize(
+    ("user", "expected_status"),
+    [({"permissions": ["platform.admin"]}, 200), ({"permissions": []}, 403), ({}, 403)],
+)
+def test_permission_dependency_allows_only_explicit_permission(user, expected_status):
+    from fastapi import Depends, FastAPI
+    from fastapi.testclient import TestClient
+
+    import app.main as main
+
+    protected_app = FastAPI()
+    protected_app.dependency_overrides[main.get_current_user] = lambda: user
+    protected_app.add_api_route(
+        "/platform-admin",
+        lambda _authorized=Depends(main.require_permission("platform.admin")): {"allowed": True},
+    )
+
+    response = TestClient(protected_app).get("/platform-admin")
+    assert response.status_code == expected_status
+    if expected_status == 403:
+        assert response.json() == {"detail": "Permission denied"}
+
+
+def test_permission_dependency_ignores_client_supplied_role_header():
+    from fastapi import Depends, FastAPI
+    from fastapi.testclient import TestClient
+
+    import app.main as main
+
+    protected_app = FastAPI()
+    protected_app.dependency_overrides[main.get_current_user] = lambda: {"permissions": []}
+    protected_app.add_api_route(
+        "/platform-admin",
+        lambda _authorized=Depends(main.require_permission("platform.admin")): {"allowed": True},
+    )
+
+    response = TestClient(protected_app).get("/platform-admin", headers={"X-Role": "platform_admin"})
+    assert response.status_code == 403
+
+
+@pytest.mark.parametrize(
     ("method", "path", "kwargs"),
     [
         ("get", "/auth/me", {"cookies": {"finsight_session": "synthetic-token"}}),
         ("post", "/auth/logout", {"cookies": {"finsight_session": "synthetic-token"}}),
+        ("get",
+            "/api/v1/admin/authorization/capabilities",
+            {"cookies": {"finsight_session": "synthetic-token"}},
+        ),
     ],
 )
 def test_session_database_outages_return_controlled_error(monkeypatch, method, path, kwargs):

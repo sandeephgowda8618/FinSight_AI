@@ -12,7 +12,7 @@
 | Operations | One versioned SQL identity migration; CI quality, test, dependency-security, hygiene, and release-package jobs | Migration runner, configured deployment target, production environment and automated deployment |
 | Integrations | None in the current runtime slice | Ollama, embedding/market-data providers, object storage, email/notifications, workers |
 
-Release 1 remains read-only financial research: there are no broker order routes or enabled trading flows. Password recovery, MFA, administrator invitation UI/email, role administration, audit events, and a health endpoint are not implemented. User provisioning is currently a trusted local CLI operation, not a public registration or application invitation flow.
+Release 1 remains read-only financial research: there are no broker order routes or enabled trading flows. Password recovery, MFA, administrator invitation UI/email, workspace membership, audit events, and a health endpoint are not implemented. User provisioning is currently a trusted local CLI operation, not a public registration or application invitation flow. Platform RBAC currently defines only `platform_admin` with the narrowly scoped `platform.admin` permission; no current product operation consumes that permission. The reusable `require_permission` dependency denies missing permissions. Operator and Standard User remain workspace-scoped and unassigned until workspace membership exists.
 
 ## Runtime and repository boundaries
 
@@ -49,7 +49,7 @@ The API also exposes FastAPI's generated OpenAPI document and interactive `/docs
 
 ## Persistence and configuration ownership
 
-PostgreSQL is the source of truth for the existing identity data. The migration creates `roles` (unique role key and constrained scope), `users` (case-insensitive unique email, status, nullable password hash and role reference), and `auth_sessions` (user FK with cascade, unique token digest, expiry/revocation timestamps). This is only the implemented subset; consult the schema/ERD reference for the canonical broader target entities. No supplied full schema or optional trading schema is applied by this app.
+PostgreSQL is the source of truth for the existing identity data. Migrations create `roles` (unique role key and constrained scope), `users` (case-insensitive unique email, status, nullable password hash and platform-role reference), `auth_sessions` (user FK with cascade, unique token digest, expiry/revocation timestamps), `permissions`, and `role_permissions`. The migration enforces that `users.platform_role_id` references a platform-scoped role. Only `platform_admin` and `platform.admin` are seeded. This is only the implemented subset; consult the schema/ERD reference for canonical broader target entities. No supplied full schema, workspace schema, or optional trading schema is applied by this app.
 
 The current migration is a one-time SQL script with transaction boundaries, not a migration framework. Apply it only to a confirmed new/disposable development or test database, once. Production migration ownership and a general migration runner are unresolved deployment work. Keep application rollback separate from schema rollback; do not reverse a migration automatically. Prefer additive expand/contract migrations and preserve a schema usable by both old and new application versions. Review and test any destructive/contract migration with backup/restore and an explicit recovery owner.
 

@@ -1,0 +1,92 @@
+FinSight AI — Function/Test Traceability
+
+FIN-15 / FS-01-02 — platform authorization capability endpoint
+Function: GET /api/v1/admin/authorization/capabilities
+Authorization rule: requires a valid active session and database-resolved `platform.admin` permission; deny by default.
+Scope: platform-only. Workspace roles, membership, and workspace tables are deferred.
+Test mapping: TC_AUTHZ_001 (unauthenticated/invalid session denial), TC_AUTHZ_002 (permission matrix: platform admin allowed, standard user denied; client-supplied X-Role ignored), TC_AUTHZ_003 (session expiry/revocation behavior via existing session dependency).
+Evidence note: route integration assertions were added to apps/api/tests/test_identity_constraints.py. Mark test cases PASS only after executing the mapped tests and confirming the expected behavior.
+
+FIN-15 — EXECUTION EVIDENCE ADDENDUM (2026-10-20)
+Run ID: 20261020_141030
+Endpoint: GET /api/v1/admin/authorization/capabilities
+
+Observed execution:
+- tests/test_identity_constraints.py: 3 passed, 4 warnings.
+- Full API suite: 55 passed, 10 warnings.
+- Both pytest commands exited with code 0.
+- Evidence:
+  test-results/FIN-15/20261020_141030_identity_authorization.log
+  test-results/FIN-15/20261020_141030_full_api_suite.log
+  test-results/FIN-15/run_20261020_141030_summary.txt
+
+Case-status guidance:
+- TC_AUTHZ_001: verify its exact assertions before marking fully PASS; the integration
+  test suite passed, but broader acceptance criteria must also be checked.
+- TC_AUTHZ_002: PASS for the platform permission behavior explicitly asserted by the
+  integration test; this does not imply missing model/provider operations exist.
+- TC_AUTHZ_003: existing expiry/revocation regression passed in an earlier recorded run;
+  it was not separately rerun under run ID 20261020_141030.
+- TC_PRIV_002: BLOCKED / deferred because workspace membership and resource-level
+  authorization are outside the approved platform-only scope.
+- TC_SYS_001: not established by the API suite alone; broader system acceptance remains
+  to be verified.
+
+Do not infer full story completion from a green test suite. Historical entries are
+retained, and this addendum records the latest observed execution.
+
+
+FIN-15 TRACEABILITY RECONCILIATION — 2026-10-20 17:38 IST
+Recorded run: 20261020_141030. The existing execution record reports 3 authorization
+integration tests and 55 full API tests passing; this entry does not represent
+a new run.
+
+Status interpretation:
+- TC_AUTHZ_001: PARTIAL; API anonymous/invalid-session assertions passed, but
+  the source test case also requires a protected frontend page and broader
+  end-to-end verification.
+- TC_AUTHZ_002: PARTIAL; platform permission allow/deny and client-supplied
+  X-Role rejection are evidenced. A model/provider admin operation and the full
+  role/operation matrix are not evidenced.
+- TC_AUTHZ_003: previously recorded PASS is historical; this run did not
+  separately rerun the configured idle-inactivity test.
+- TC_PRIV_002: DEFERRED / NOT RUN; workspace membership and resource-level
+  authorization are outside the approved platform-only scope.
+- TC_SYS_001: NOT RUN / not established by the API suite alone.
+
+Route reconciliation warning: historical sections in this file and other
+tracking files contain conflicting route names. Before changing the canonical
+route text, inspect the current route decorator in apps/api/app/main.py and the
+matching test request path, then make all tracking references agree with that
+source. Do not infer the route from an older historical note.
+
+Story disposition: FIN-15 / FS-01-02 remains PARTIAL. The capability endpoint
+is a narrow API authorization test seam, not proof that every protected
+operation, frontend guard, or system-level acceptance criterion is complete.
+Workspace roles, membership, and workspace tables remain deferred. FIN-14 is
+unchanged.
+
+ROUTE VERIFICATION — 2026-10-20
+Canonical current route: GET /api/v1/admin/authorization/capabilities.
+Verified against apps/api/app/main.py and the matching test request paths.
+
+
+FIN-15 — FRESH QUALITY VERIFICATION ADDENDUM (2026-10-21)
+Database: dedicated local PostgreSQL database finsight_fin15_test.
+Migrations 0001_auth_identity.sql and 0002_platform_authorization.sql applied.
+
+Fresh observed results:
+- Focused identity/authorization integration tests: 5 passed.
+- Full backend suite: 58 passed, 0 failed, 18 warnings.
+- Full suite with coverage: 58 passed; 99% total coverage.
+- pip check, compileall, and git diff --check passed.
+- Traceability validator passed.
+
+These results supersede neither the historical 2026-10-20 run record nor
+the individual acceptance criteria. TC_AUTHZ_001 and TC_AUTHZ_002 remain
+PARTIAL; TC_AUTHZ_003 is historical PASS only; TC_PRIV_002 is DEFERRED /
+NOT RUN under the approved platform-only scope; TC_SYS_001 remains
+NOT RUN for the full planned system acceptance workflow.
+
+Overall FIN-15 / FS-01-02 status: PARTIAL, not accepted or VERIFIED COMPLETE.
+Workspace/resource authorization remains deferred. FIN-14 is unchanged.

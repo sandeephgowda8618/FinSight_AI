@@ -21,9 +21,10 @@ Authentication uses a local PostgreSQL database. Ollama and market-data provider
    set -a; . ./.env; set +a
    createdb finsight
    psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f apps/api/migrations/0001_auth_identity.sql
+   psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f apps/api/migrations/0002_platform_authorization.sql
    ```
 
-   The migration creates only the canonical `roles`, `users`, and `auth_sessions` identity tables needed by authentication. Apply it once to a new development database; never apply the supplied target schema wholesale to an existing database.
+   These versioned migrations create the implemented subset of canonical identity and authorization tables. `0002` adds only `platform_admin` and the single explicit `platform.admin` permission; it does not seed workspace roles or grant product-module permissions. Never apply the supplied target schema wholesale to an existing database.
 
 4. In a terminal, install and start the API:
 
@@ -43,6 +44,8 @@ Authentication uses a local PostgreSQL database. Ollama and market-data provider
    python -m app.provision_user analyst@example.com "Analyst"
    ```
 
+   Accounts receive no platform permissions by default. Grant platform administrator access only to a trusted operator-selected account with `python -m app.provision_user admin@example.com "Administrator" --platform-admin`. Operator and Standard User are workspace-scoped in the canonical design and remain unavailable until workspace membership is implemented.
+
 6. In a second terminal, install and start the web app:
 
    ```sh
@@ -59,6 +62,7 @@ Stop either development server with `Ctrl+C`. The API binds to loopback for loca
 
 - `POST /auth/login` accepts an email and password, verifies the Argon2id password hash, and sets an opaque `HttpOnly`, `SameSite=Lax` session cookie. Only the SHA-256 digest of the random cookie value is stored in PostgreSQL.
 - `GET /auth/me` requires a valid, unrevoked, unexpired session and returns the signed-in user profile. Protected API routes should use the same backend dependency; frontend state is not an authorization boundary.
+- Backend routes requiring a capability use `require_permission(permission_key)`. Permissions are resolved from PostgreSQL through the user's platform role; absent roles and unknown permissions deny access with 403. The current migration grants only `platform.admin`; no current product/admin route consumes it. Workspace roles are not assigned globally. `/app/:path*` has a Next.js Proxy cookie-presence redirect for anonymous page requests; it is only a navigation aid, and every API still validates the server-side session and permission.
 - `POST /auth/logout` revokes the current database session and clears the cookie. Login errors use the same public message for unknown users and incorrect passwords.
 - There is no public registration route. Account creation or password rotation is performed by a trusted local administrator using the provisioning command above.
 - Configure `DATABASE_URL` for a disposable development/test database before applying migrations or running integration tests. Install `apps/api/requirements-dev.lock` in the Python environment, then run the layers independently from the repository root:
@@ -66,7 +70,7 @@ Stop either development server with `Ctrl+C`. The API binds to loopback for loca
   - Frontend interaction tests: from `apps/web`, run `npm ci`, `npx playwright install chromium`, and `npm run test:ui`. These tests use deterministic API responses.
 
 The current Playwright setup reports interaction results but does not instrument frontend source for line or branch coverage. No frontend percentage is reported until a source-coverage integration is selected and configured.
-  - Live browser smoke: with `DATABASE_URL` set to a disposable PostgreSQL database where `apps/api/migrations/0001_auth_identity.sql` has been applied, run `python scripts/run_live_e2e.py` from the repository root. It starts local API/frontend processes, provisions one random synthetic account, tests failed/successful login and logout in Chromium, then deletes the account. Set `FRONTEND_DIR` to a built Next.js standalone directory to exercise a production build; otherwise it runs the development server.
+  - Live browser smoke: with `DATABASE_URL` set to a disposable PostgreSQL database where migrations `0001_auth_identity.sql` and `0002_platform_authorization.sql` have been applied, run `python scripts/run_live_e2e.py` from the repository root. It starts local API/frontend processes, provisions one random synthetic account, tests failed/successful login and logout in Chromium, then deletes the account. Set `FRONTEND_DIR` to a built Next.js standalone directory to exercise a production build; otherwise it runs the development server.
 - The browser suite needs Playwright Chromium (`npx playwright install chromium`). PostgreSQL integration and live smoke require the disposable identity schema; tests do not apply migrations to a database automatically.
 - For deployed environments, use HTTPS and set `COOKIE_SECURE=true`. Do not use the development HTTP cookie setting outside loopback development.
 

@@ -315,3 +315,168 @@ Checks (2026-10-19):
 - CSV trailing-whitespace scan: 0 rows. `git diff --check`: PASS, exit 0.
 GitHub-side limitation: `git show --check --format= HEAD` against the existing root commit exits 2 with 1,323 diagnostics, including immutable source PDFs and other pre-existing root-commit files. No source PDF/SQL/diagram/test plan was edited. The targeted working diff passes `git diff --check`; an incremental commit/push is needed so the next GitHub run checks only the corrective diff. No commit, push, Jira update, or remote rerun was made. A new GitHub Actions result is required before claiming the repair passed remotely; FIN-73/74/79 status is unchanged.
 Final review note (2026-10-19): `git diff --check` exited 0 for the targeted workflow/CSV/script changes before coordination records were appended. A later full `git diff --check` attempt timed out after 8 seconds (intermittent Git responsiveness); direct trailing-whitespace scans of `.github/workflows/ci.yml`, `docs/requirements/traceability-stories.csv`, `scripts/validate_traceability.py`, and both updated coordination files found zero whitespace errors and all had final newlines. The historical root-commit check result above remains distinct from the current worktree check.
+
+FIN-15 / FS-01-02 — Enforce roles and protected routes (2026-10-19)
+Status: BLOCKED pending role-scope decision; implementation not started.
+Inspected relevant SRS access-control requirements, canonical schema and reference seeds, FS-01-02 backlog, four-sprint/test-plan mapping, architecture docs, identity/session API, migration 0001, trusted provisioning CLI, and relevant tests. Existing routes: public POST `/auth/login`, POST `/auth/logout`, protected GET `/auth/me`; no product/admin operation or protected frontend page currently exists. Existing session dependency already rejects absent, revoked, and expired sessions; prior `TC_AUTHZ_003` expiry result remains PASS as previously recorded.
+Schema blocker: migration 0001 has only nullable `users.platform_role_id`; it has no permission/role_permissions/workspace/workspace_members persistence. Canonical schema seeds `platform_admin` as platform scope and `operator`/`standard_user` as workspace scope. Converting workspace roles into global roles or silently creating a default workspace would change authorization/data semantics. See Q-011 in `conversation.txt`; user decision requested: platform roles only and defer workspace roles, or authorize minimal canonical workspace membership model.
+Verification: attempted `.venv/bin/python -m pytest -q apps/api/tests/test_auth_unit.py -k 'unauthenticated or protected_routes_require_authentication'`; command returned no output during bounded polling and was interrupted. Outcome is NOT RUN / no test evidence. No application, migration, frontend, traceability, test-register, source, Jira, or Git files were changed. Relevant test statuses remain unchanged pending decision and executable verification.
+Remaining acceptance criteria: role/permission matrix, 403 behavior, trusted role resolution/provisioning assignment, protected route application, and frontend guard cannot be completed safely until scope decision and a concrete capability/resource mapping are established. TC_AUTHZ_001 also requires a protected frontend page (none exists); TC_AUTHZ_002 currently names a model/provider admin operation that does not exist; TC_PRIV_002 requires workspace membership/resources not implemented. FIN-15 is not ready for acceptance.
+
+FIN-15 verification update — 2026-10-20
+- PostgreSQL 17.6 is running locally.
+- Created and used the dedicated finsight_test database.
+- Applied apps/api/migrations/0001_auth_identity.sql successfully.
+- Applied apps/api/migrations/0002_platform_authorization.sql successfully.
+- Database integration tests: 3 passed.
+- Full API test suite: 55 passed, 0 failed, 9 warnings.
+- git diff --check: no errors reported.
+- Warning: Starlette/httpx deprecation warnings remain.
+- Outstanding acceptance gap: require_permission is defined and unit-tested, but no actual application route was found using it in the current route inspection.
+- FIN-15 is not yet marked complete pending route-level authorization verification and remaining acceptance checks.
+
+FIN-15 implementation update — 2026-10-20
+- Approved scope: platform-level authorization only; workspace roles, membership, and workspace tables deferred.
+- Added GET /platform/admin/capability to the real FastAPI application, protected by the database-backed platform.admin permission dependency. This endpoint is a minimal authorization capability check and does not mutate data.
+- Updated the database integration test to exercise the real application route for anonymous, platform-admin, and unprivileged-user access; the unprivileged request also supplies X-Role to verify client headers do not grant permission.
+- Function/test traceability added in FUNCTION_TEST_TRACEABILITY.txt for TC_AUTHZ_001, TC_AUTHZ_002, and related existing session coverage TC_AUTHZ_003.
+- Verification status: implementation edits prepared; tests have NOT RUN after this change. Do not mark FIN-15 VERIFIED COMPLETE until test results and all acceptance criteria are checked.
+- No migrations, commits, pushes, or workspace schema changes performed by this patch script.
+
+FIN-15 — VERIFIED TEST RUN ADDENDUM (2026-10-20)
+Latest run: 20261020_141030
+Recorded revision: 64f2637
+Python: 3.14.6
+Database: finsight_test
+
+Observed results:
+- tests/test_identity_constraints.py: 3 passed, 4 warnings.
+- Full API suite: 55 passed, 10 warnings.
+- Both pytest commands exited with code 0.
+- The test-run summary records Overall result: PASS.
+
+Evidence:
+- test-results/FIN-15/20261020_141030_identity_authorization.log
+- test-results/FIN-15/20261020_141030_full_api_suite.log
+- test-results/FIN-15/run_20261020_141030_summary.txt
+
+The warnings were Starlette/httpx deprecations. The passing test suites establish
+the behavior exercised by those tests, not automatic completion of every FIN-15
+acceptance criterion. Workspace membership and resource-level authorization remain
+deferred under the approved platform-only scope. Earlier entries are retained as
+historical records; this addendum records the later successful run.
+
+
+FIN-15 — CURRENT VERIFICATION ADDENDUM (2026-10-20)
+Scope: platform-level authorization only; workspace membership and
+resource-level authorization remain deferred under the approved scope decision.
+
+Current API test evidence:
+- Full API suite: 58 passed, 18 warnings.
+- Traceability validator: PASS.
+- Endpoint: GET /api/v1/admin/authorization/capabilities.
+- Permission checks use database-resolved authorization; tests cover
+  administrator access, standard-user denial, permission revocation,
+  and platform-role revocation.
+- TC_AUTHZ_001 remains NOT RUN as a complete test-plan case because its
+  protected-frontend and response/log inspection steps are not all evidenced.
+- TC_AUTHZ_002 remains NOT RUN as a complete test-plan case because its
+  full role matrix, protected model/provider operation, and request-body
+  privilege-manipulation steps are not all evidenced.
+- TC_AUTHZ_003 retains its existing recorded status; the current 58-test
+  result alone does not establish that every test-plan step was rerun.
+- TC_PRIV_002 remains NOT RUN / deferred: workspace and cross-user
+  resource authorization are not implemented by this platform-only change.
+- TC_SYS_001 remains NOT RUN until the required end-to-end smoke path is run.
+
+Overall FIN-15 status: PARTIAL. Passing API tests do not constitute
+acceptance of every story criterion. No claim is made that the story is
+fully accepted. Historical entries above this addendum are retained.
+
+
+FIN-15 TRACKING RECONCILIATION — 2026-10-20 17:38 IST
+Evidence source: recorded run 20261020_141030; this is a documentation reconciliation,
+not a new test execution. Historical entries above are intentionally retained.
+
+Recorded execution:
+- Identity/authorization integration tests: 3 passed, 4 warnings; exit code 0.
+- Full API suite: 55 passed, 10 warnings; exit code 0.
+- Evidence: test-results/FIN-15/20261020_141030_identity_authorization.log,
+  test-results/FIN-15/20261020_141030_full_api_suite.log, and
+  test-results/FIN-15/run_20261020_141030_summary.txt.
+- Warnings recorded as Starlette/httpx deprecations and per-request cookie
+  deprecation warnings; no test failures were recorded in that run.
+
+FIN-15 status: PARTIAL — do not mark story accepted/complete from these test
+results alone.
+- Demonstrated by the recorded integration test: unauthenticated and invalid
+  session denial; platform-admin success; standard-user denial despite an
+  X-Role: platform_admin request header; platform role scope constraint.
+- TC_AUTHZ_001: PARTIAL. API anonymous/invalid-session checks are evidenced,
+  but the source test case also requires a protected frontend page and broader
+  end-to-end checks. Do not mark fully PASS until those are exercised.
+- TC_AUTHZ_002: PARTIAL for the narrow platform permission behavior asserted.
+  The planned model/provider admin operation and full operator/standard-user
+  operation matrix are not evidenced by the capability endpoint.
+- TC_AUTHZ_003: retain the previously recorded PASS only as historical evidence
+  for the existing session-expiry regression. It was not separately rerun in
+  run 20261020_141030; confirm the configured idle-inactivity threshold if required by
+  the source test case.
+- TC_PRIV_002: DEFERRED / NOT RUN under the approved platform-only scope.
+  Workspace membership, workspace resources, and resource-level isolation
+  remain outside this implementation.
+- TC_SYS_001: NOT RUN / NOT ESTABLISHED by the API suite alone.
+- Approved decision remains platform-level authorization only. Workspace roles,
+  membership, and workspace tables are deferred. FIN-14 is not changed.
+- Before marking FIN-15 complete, verify the actual route path in
+  apps/api/app/main.py and its tests, align stale route references in the
+  tracking records, and close the remaining story-level acceptance gaps.
+
+FIN-15 ROUTE RECONCILIATION — 2026-10-20
+Verified against the current FastAPI route decorator and test request paths:
+GET /api/v1/admin/authorization/capabilities
+Older references to GET /platform/admin/capability above are historical
+implementation notes and do not describe the current route.
+No application code or migration was changed by this documentation update.
+
+FIN-15 — FRESH QUALITY VERIFICATION ADDENDUM (2026-10-21)
+
+Scope: FIN-15 / FS-01-02, platform-level authorization only.
+Database: dedicated local PostgreSQL database finsight_fin15_test.
+Migrations: 0001_auth_identity.sql and 0002_platform_authorization.sql
+applied successfully to the dedicated test database.
+
+Observed verification results:
+- Focused identity/authorization integration tests:
+  5 passed, 0 failed.
+- Full backend test suite:
+  58 passed, 0 failed, 18 deprecation warnings.
+- Full suite with statement and branch coverage:
+  58 passed, 0 failed, 18 warnings; 99% total coverage.
+- Module coverage: auth.py 100%, database.py 100%, main.py 100%,
+  provision_user.py 94%.
+- Python dependency check: pip check passed; no broken requirements.
+- Python compilation: compileall passed, exit code 0.
+- Git whitespace validation: git diff --check returned no errors.
+- Coverage reports generated locally: coverage.xml and htmlcov/.
+
+The above results are fresh local verification evidence. They do not
+establish all FIN-15 acceptance criteria.
+
+Outstanding criteria:
+- TC_AUTHZ_001: PARTIAL; complete acceptance-case evidence remains
+  outstanding.
+- TC_AUTHZ_002: PARTIAL; platform permission behavior is tested, but
+  the full originally specified protected-resource acceptance case is
+  not established.
+- TC_AUTHZ_003: retain the previously recorded historical PASS; the
+  latest suite is not by itself a new idle-timeout-specific execution.
+- TC_PRIV_002: DEFERRED / NOT RUN under the approved platform-only scope.
+- TC_SYS_001: NOT RUN for the full planned system acceptance workflow.
+
+Overall FIN-15 status: PARTIAL. Do not mark accepted or VERIFIED COMPLETE
+until the remaining applicable acceptance criteria and evidence are
+reconciled. Workspace roles, membership, and resource-level authorization
+remain deferred. FIN-14 is outside this verification scope.
+
+No commit or push was performed as part of this verification.

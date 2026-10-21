@@ -1,6 +1,14 @@
 FinSight AI decision log
 Updated: 2026-10-18
 
+Q-011 — FIN-15 / FS-01-02 role assignment scope — WAITING FOR USER
+Why it matters: the current identity migration stores only `users.platform_role_id` and has no permissions, role_permissions, workspaces, or workspace_members tables. The canonical schema and seed define `platform_admin` as a platform role, while `operator` and `standard_user` are workspace-scoped. There is no current protected product/admin API operation or authenticated frontend page to map to those roles; `/auth/me` is the only authenticated API route and `/` is the public sign-in experience. Treating workspace roles as global roles or inventing a default workspace would change schema meaning and permission scope.
+Recommended choice: keep FIN-15 bounded to platform role assignment and a deny-by-default authorization policy for currently implemented capabilities; defer assigning/authorizing workspace-scoped Operator and Standard User roles until workspace membership is implemented by its authorized story. Do not invent grants for nonexistent product operations.
+Choices: (A) Platform roles only now; workspace roles remain unassigned and blocked until workspace membership exists. (B) Authorize adding the minimum canonical workspace/membership model and its lifecycle now, including choosing how workspaces are created and assigned.
+Exact next action: reply with “A” or “B”. No schema-dependent role implementation has been made pending this decision.
+
+FIN-15 inspection note (2026-10-19): reviewed the FIN-15 pasted request, SRS FR-P1-05..08 and relevant access-control statements, canonical identity DDL and reference role seeds, FS-01-02 backlog acceptance/dependency, Sprint 1 TC_AUTHZ_001/002/003 and TC_PRIV_002, current architecture docs, auth route/dependency, migration 0001, provisioning CLI, and existing auth tests. Source PDFs, SQL, diagrams, and original test plan remain read-only. Existing evidence: `/auth/me` uses the existing session validation and rejects anonymous/expired/revoked sessions; there is no RBAC layer, permission persistence, admin operation, workspace membership, or protected frontend page. `TC_AUTHZ_003` remains previously recorded PASS for session expiry only; no new result is claimed. Attempted `.venv/bin/python -m pytest -q apps/api/tests/test_auth_unit.py -k 'unauthenticated or protected_routes_require_authentication'`; process produced no output within the bounded polling window and was interrupted, so no test result is claimed. No Git, Jira, or source-artifact changes were made.
+
 Q-001 — FS-11-01 dependency discrepancy — ANSWERED
 Why it matters: the detailed 72-story backlog lists FS-01-01 as a dependency of FS-11-01, while the four-sprint plan treats repository setup as foundational. Live Jira FIN-2 has no issue link to FIN-13, and FIN-13 remains To Do.
 User decision (2026-10-18): Proceed with FIN-2 / FS-11-01 as foundational parallel work. Treat the source dependency as unresolved. Do not create or remove Jira issue links without authorization.
@@ -100,3 +108,20 @@ Status: local fixes verified; remote confirmation pending. Corrected frontend ar
 Local checks: PyYAML workflow parse/target assertions PASS; `NEXT_TELEMETRY_DISABLED=1 npm run build` PASS (exit 0; Next 16.4.2); `.next/standalone` and `.next/static` exist; exact tar packaging command succeeded and archive inspection confirmed only `standalone/` and `static/` roots, 1,466 entries, SHA-256 `651f28563199baf95574f9c23fc78e2b8d6a10a88bf4a114c3fc033b744c3513`; `python3 scripts/validate_traceability.py` PASS; Python compilation PASS; CSV whitespace scan 0 rows; `git diff --check` PASS. No backend/security/Playwright suites were rerun.
 Caveat: `git show --check --format= HEAD` on the existing root commit exits 2 with 1,323 historical whitespace diagnostics including immutable PDFs and other existing files. These were not changed. Current incremental worktree diff passes. A new incremental commit/push and GitHub Actions run are required to confirm the corrected workflow; no commit, push, Jira update, or rerun was performed.
 Final validation note: after updating the coordination records, bounded `git diff --check` timed out at 8 seconds. Earlier targeted `git diff --check` completed with exit 0, and direct whitespace scans of all affected text files found zero trailing-whitespace lines and valid final newlines. Treat final full Git diff hygiene as incomplete due intermittent Git responsiveness; the incremental GitHub Actions run remains required.
+
+2026-10-20 — FIN-15 verification checkpoint
+- Created a dedicated local finsight_test database after resolving low disk space.
+- Applied migrations 0001_auth_identity.sql and 0002_platform_authorization.sql successfully.
+- Database integration tests: 3 passed.
+- Full API suite: 55 passed, 0 failed, 9 warnings in 9.52 seconds.
+- git diff --check returned no errors.
+- Remaining gap: current inspection found require_permission defined and tested but not used by an actual application route. FIN-15 remains unverified/incomplete until route-level authorization and remaining acceptance criteria are checked.
+- No commit or push performed.
+
+FIN-15 implementation update — 2026-10-20
+- Approved scope: platform-level authorization only; workspace roles, membership, and workspace tables deferred.
+- Added GET /platform/admin/capability to the real FastAPI application, protected by the database-backed platform.admin permission dependency. This endpoint is a minimal authorization capability check and does not mutate data.
+- Updated the database integration test to exercise the real application route for anonymous, platform-admin, and unprivileged-user access; the unprivileged request also supplies X-Role to verify client headers do not grant permission.
+- Function/test traceability added in FUNCTION_TEST_TRACEABILITY.txt for TC_AUTHZ_001, TC_AUTHZ_002, and related existing session coverage TC_AUTHZ_003.
+- Verification status: implementation edits prepared; tests have NOT RUN after this change. Do not mark FIN-15 VERIFIED COMPLETE until test results and all acceptance criteria are checked.
+- No migrations, commits, pushes, or workspace schema changes performed by this patch script.

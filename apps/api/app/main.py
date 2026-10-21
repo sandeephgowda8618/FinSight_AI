@@ -77,12 +77,18 @@ def get_current_user(
     try:
         with connect() as conn, conn.cursor(row_factory=dict_row) as cur:
             cur.execute(
-                """SELECT u.user_id, u.email, u.display_name
+                """SELECT u.user_id, u.email, u.display_name, r.role_key,
+                          COALESCE(array_agg(DISTINCT p.permission_key)
+                                   FILTER (WHERE p.permission_key IS NOT NULL), ARRAY[]::varchar[]) AS permissions
                    FROM auth_sessions s JOIN users u ON u.user_id = s.user_id
+                   LEFT JOIN roles r ON r.role_id = u.platform_role_id AND r.scope = 'platform'
+                   LEFT JOIN role_permissions rp ON rp.role_id = r.role_id
+                   LEFT JOIN permissions p ON p.permission_id = rp.permission_id
                    WHERE s.refresh_token_hash = %s AND s.revoked_at IS NULL
                      AND s.expires_at > %s AND u.account_status = 'active'
                      AND s.last_seen_at > %s - make_interval(mins => %s)
-                     AND u.deleted_at IS NULL""",
+                     AND u.deleted_at IS NULL
+                   GROUP BY u.user_id, u.email, u.display_name, r.role_key""",
                 (token_digest(session_token), datetime.now(UTC), datetime.now(UTC), _ttl_minutes()),
             )
             user = cur.fetchone()
@@ -98,6 +104,16 @@ def get_current_user(
 
 
 CurrentUser = Annotated[dict[str, Any], Depends(get_current_user)]
+
+
+def require_permission(permission_key: str):
+    """Build a deny-by-default backend permission dependency."""
+    def dependency(user: CurrentUser) -> dict[str, Any]:
+        if permission_key not in user.get("permissions", []):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
+        return user
+
+    return dependency
 
 
 @app.post("/auth/login", response_model=UserView)
@@ -163,3 +179,42 @@ def logout(request: Request, response: Response,
 @app.get("/auth/me", response_model=UserView)
 def who_am_i(user: CurrentUser) -> UserView:
     return UserView(**user)
+
+
+@app.get("/api/v1/admin/authorization/capabilities")
+def platform_admin_capabilities(
+    request: Request,
+    _authorized: Annotated[dict[str, Any], Depends(require_permission("platform.admin"))],
+) -> dict[str, Any]:
+    """Return the authenticated caller's database-backed platform capabilities."""
+
+    supplied_request_id = request.headers.get("request_id", "").strip()
+    if supplied_request_id and (
+        len(supplied_request_id) > 128
+        or any(ord(char) < 32 or ord(char) == 127 for char in supplied_request_id)
+    ):
+        raise HTTPException(status_code=400, detail="Invalid request_id")
+
+    # Always issue a server-generated canonical request ID.
+    request_id = f"req_{secrets.token_urlsafe(12)}"
+    correlation_id = supplied_request_id or request_id
+    permissions = sorted(set(_authorized.get("permissions", [])))
+    capabilities = (
+        ["inspect_authorization_policy"]
+        if "platform.admin" in permissions
+        else []
+    )
+
+    return {
+        "data": {
+            "subject": {
+                "user_id": str(_authorized["user_id"]),
+                "platform_role_code": _authorized.get("role_key"),
+            },
+            "effective_permissions": permissions,
+            "capabilities": capabilities,
+            "policy_version": "sprint-1-platform-rbac-v1",
+        },
+        "request_id": request_id,
+        "correlation_id": correlation_id,
+    }

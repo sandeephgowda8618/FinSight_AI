@@ -121,3 +121,87 @@ TC_DASH_002 | Status: NOT RUN | Execution date: — | Actual result: — | Teste
 TC_INT_001 | Status: NOT RUN | Execution date: — | Actual result: — | Tester/owner: — | Evidence: — | Linked defect: —
 TC_SYS_001 | Status: NOT RUN | Execution date: — | Actual result: — | Tester/owner: — | Evidence: — | Linked defect: —
 TC_BOUNDARY_001 | Status: NOT RUN | Execution date: — | Actual result: — | Tester/owner: — | Evidence: — | Linked defect: —
+
+Additional test evidence — 2026-10-20
+- Command: DATABASE_URL="postgresql:///finsight_test" python -m pytest -q tests/test_identity_constraints.py
+- Result: 3 passed, 0 failed, 3 warnings.
+- Command: DATABASE_URL="postgresql:///finsight_test" python -m pytest -q
+- Result: 55 passed, 0 failed, 9 warnings in 9.52s.
+- Environment: local PostgreSQL 17.6; dedicated finsight_test database.
+- Migrations applied successfully before test execution: 0001_auth_identity.sql and 0002_platform_authorization.sql.
+- Warnings are Starlette/httpx deprecations; no test failures in the final full-suite run.
+- Note: these results record the executed suite only; do not infer individual test-case IDs as PASS without verifying their mapping to the test inventory.
+
+FIN-15 route-level authorization test update — 2026-10-20
+- Test mapping: TC_AUTHZ_001 / TC_AUTHZ_002 / TC_AUTHZ_003 (existing session expiry regression coverage).
+- Added integration assertions for GET /platform/admin/capability against the real FastAPI app: anonymous request expects 401; platform-admin session expects 200; authenticated user without permission expects 403 even with X-Role: platform_admin.
+- Status after code edit: NOT RUN. Execute the mapped tests and update statuses only from observed results.
+
+FIN-15 — VERIFIED EXECUTION ADDENDUM (2026-10-20)
+Run ID: 20261020_141030
+Python: 3.14.6
+Database: finsight_test
+Recorded Git revision: 64f2637
+
+Results:
+- Identity/authorization integration suite: 3 passed, 4 warnings; exit code 0.
+- Full API suite: 55 passed, 10 warnings; exit code 0.
+- Evidence files:
+  test-results/FIN-15/20261020_141030_identity_authorization.log
+  test-results/FIN-15/20261020_141030_full_api_suite.log
+  test-results/FIN-15/run_20261020_141030_summary.txt
+
+These results supersede earlier NOT RUN notes for the test execution performed
+in this run. They do not establish that every mapped test-plan case or the entire
+FIN-15 story is complete. Workspace-level authorization remains deferred.
+Historical disposition note: FIN-15 was recorded as complete in an earlier entry;
+the subsequent reconciliation below supersedes that disposition.
+
+
+FIN-15 TEST-STATUS RECONCILIATION — 2026-10-20 17:38 IST
+Recorded run: 20261020_141030. This addendum does not claim a new execution.
+- Identity/authorization integration suite: 3 passed, 4 warnings; exit code 0.
+- Full API suite: 55 passed, 10 warnings; exit code 0.
+- Evidence paths:
+  test-results/FIN-15/20261020_141030_identity_authorization.log
+  test-results/FIN-15/20261020_141030_full_api_suite.log
+  test-results/FIN-15/run_20261020_141030_summary.txt
+
+Conservative case disposition:
+- TC_AUTHZ_001: PARTIAL — API unauthenticated/invalid-session behavior was
+  exercised; protected frontend page and full test-plan scope remain unverified.
+- TC_AUTHZ_002: PARTIAL — the narrow platform-admin/standard-user permission
+  behavior and X-Role spoof rejection were exercised; the planned model/provider
+  admin operation and complete role/operation matrix remain unverified.
+- TC_AUTHZ_003: historical PASS only — the existing expiry regression was
+  recorded earlier; it was not separately rerun in run 20261020_141030.
+- TC_PRIV_002: DEFERRED / NOT RUN — workspace/resource authorization is outside
+  the approved platform-only scope.
+- TC_SYS_001: NOT RUN — a passing API suite is not a browser/system smoke test.
+Overall FIN-15 remains PARTIAL, not accepted. Do not alter FIN-14 tracking.
+
+FIN-15 ROUTE RECONCILIATION — 2026-10-20
+The current route is GET /api/v1/admin/authorization/capabilities, verified
+against apps/api/app/main.py and the matching test request paths. Older route
+references above are historical records; preserve them as such.
+
+
+FIN-15 — FRESH QUALITY VERIFICATION ADDENDUM (2026-10-21)
+Database: dedicated local PostgreSQL database finsight_fin15_test.
+Migrations 0001_auth_identity.sql and 0002_platform_authorization.sql applied.
+
+Fresh observed results:
+- Focused identity/authorization integration tests: 5 passed.
+- Full backend suite: 58 passed, 0 failed, 18 warnings.
+- Full suite with coverage: 58 passed; 99% total coverage.
+- pip check, compileall, and git diff --check passed.
+- Traceability validator passed.
+
+These results supersede neither the historical 2026-10-20 run record nor
+the individual acceptance criteria. TC_AUTHZ_001 and TC_AUTHZ_002 remain
+PARTIAL; TC_AUTHZ_003 is historical PASS only; TC_PRIV_002 is DEFERRED /
+NOT RUN under the approved platform-only scope; TC_SYS_001 remains
+NOT RUN for the full planned system acceptance workflow.
+
+Overall FIN-15 / FS-01-02 status: PARTIAL, not accepted or VERIFIED COMPLETE.
+Workspace/resource authorization remains deferred. FIN-14 is unchanged.
