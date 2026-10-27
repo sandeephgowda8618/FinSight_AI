@@ -97,3 +97,18 @@ pnpm-debug.log*
 
 
 coverage.xml
+
+# OpenBao local secrets and runtime state
+openbao/openbao.hcl
+openbao/*.pem
+openbao/*.key
+openbao/*.token
+openbao/*.json
+openbao/audit/
+openbao/data/
+openbao/recovery/
+openbao/secrets/
+.env.openbao
+
+# Backup files
+*.backup*

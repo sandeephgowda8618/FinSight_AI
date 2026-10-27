@@ -90,3 +90,131 @@ NOT RUN for the full planned system acceptance workflow.
 
 Overall FIN-15 / FS-01-02 status: PARTIAL, not accepted or VERIFIED COMPLETE.
 Workspace/resource authorization remains deferred. FIN-14 is unchanged.
+
+
+FIN-14 — AUTHENTICATION SECURITY TRACEABILITY ADDENDUM (2026-10-21)
+
+Story: FIN-14 / FS-01-03 — Protect Accounts and Audit Authentication.
+
+- TC_AUTHSEC_001 — PARTIAL.
+  Evidence: apps/api/tests/test_fin14_auth_security.py,
+  apps/api/tests/test_audit_service.py, apps/api/app/audit.py.
+  Tested authentication audit events and secret redaction. End-to-end
+  correlation propagation and append-only enforcement remain unverified.
+
+- TC_AUTHSEC_002 — PARTIAL.
+  Evidence: apps/api/tests/test_throttle.py,
+  apps/api/tests/test_fin14_auth_security.py, apps/api/app/throttle.py.
+  Configuration validation and repeated-failure blocking are tested;
+  complete login-level expiry-and-successful-retry acceptance remains unverified.
+
+- TC_AUTHSEC_003 — BLOCKED.
+  Evidence: apps/api/app/main.py and apps/api/tests/test_auth.py.
+  Current-session logout/revocation is implemented; MFA and inspection/
+  termination of other active sessions are not implemented.
+
+Latest recorded execution: focused auth/security suite 66 passed;
+full API suite 82 passed. Passing test counts do not establish complete
+FIN-14 acceptance. Overall story status remains PARTIAL.
+
+FIN-14 — LATEST VERIFICATION ADDENDUM (2026-10-21)
+
+- Focused FIN-14 security suite: 7 passed, 0 failed, 3 warnings.
+- Full API suite: 86 passed, 0 failed, 19 warnings.
+- Supplied and generated correlation ID propagation is covered by integration tests.
+- TC_AUTHSEC_001 remains PARTIAL: append-only enforcement is unverified.
+- TC_AUTHSEC_002 remains PARTIAL: complete login-level expiry and successful retry are unestablished.
+- TC_AUTHSEC_003 remains BLOCKED: MFA and cross-session controls are not implemented.
+
+
+FIN-14 / MFA — TRACEABILITY CHECKPOINT (2026-10-23)
+
+- MFA factor repository and authentication integration coverage was extended.
+- Secret deletion failure preserves the reference for retry; a successful retry
+  deletes the secret and clears the reference.
+- Cross-user factor revocation is rejected without changing the owner's factor
+  or secret.
+- Latest full API run: 150 passed, 0 failed, 25 warnings.
+- TC_AUTHSEC_001 and TC_AUTHSEC_002 remain PARTIAL until all outstanding
+  acceptance criteria are reconciled with explicit test evidence.
+- TC_AUTHSEC_003 is no longer accurately described as having no MFA
+  implementation: MFA enrollment, factor listing/revocation, and login challenge
+  components now exist and have test coverage. However, the overall criterion
+  remains PARTIAL/BLOCKED for acceptance until the full MFA policy, production
+  secret-store provider, and cross-session inspection/termination requirements
+  are verified.
+- Overall FIN-14 remains PARTIAL, not accepted or VERIFIED COMPLETE.
+- No commit or push performed.
+
+
+FIN-14 / FS-01-03 — VERIFIED IMPLEMENTATION & TRACEABILITY (2026-10-27)
+
+Registered Function IDs:
+- FN-SEC-STORE-001: apps/api/app/secret_store.py OpenBaoSecretStore.put
+  Responsibility: Write secret bytes to OpenBao KV v2 (data/mfa/<uuid>) and return logical reference.
+  Story: FIN-14 / FS-01-03 | SRS: FR-P1-11, NFR-P8-02 | Test Case: TC_AUTHSEC_003 | Level: Unit/Adapter Integration | Status: PASS
+- FN-SEC-STORE-002: apps/api/app/secret_store.py OpenBaoSecretStore.get
+  Responsibility: Retrieve and decode secret bytes from OpenBao KV v2 by reference.
+  Story: FIN-14 / FS-01-03 | SRS: FR-P1-11, NFR-P8-02 | Test Case: TC_AUTHSEC_003 | Level: Unit/Adapter Integration | Status: PASS
+- FN-SEC-STORE-003: apps/api/app/secret_store.py OpenBaoSecretStore.delete
+  Responsibility: Delete secret metadata and all versions from OpenBao KV v2 by reference.
+  Story: FIN-14 / FS-01-03 | SRS: FR-P1-11, NFR-P8-02 | Test Case: TC_AUTHSEC_003 | Level: Unit/Adapter Integration | Status: PASS
+- FN-SEC-STORE-004: apps/api/app/secret_store.py secret_store_from_environment
+  Responsibility: Factory selecting and validating the configured SecretStore backend (fake, dev-encrypted, openbao).
+  Story: FIN-14 / FS-01-03 | SRS: FR-P1-11, NFR-P8-02 | Test Case: TC_AUTHSEC_003 | Level: Unit | Status: PASS
+- FN-AUTH-002: apps/api/app/main.py list_active_sessions
+  Responsibility: List all active sessions for the authenticated user, redacting session tokens.
+  Story: FIN-14 / FS-01-03 | SRS: FR-P1-12 | Test Case: TC_AUTHSEC_003 | Level: Route Integration | Status: PASS
+- FN-AUTH-003: apps/api/app/main.py terminate_session
+  Responsibility: Terminate an active user session and record audit event.
+  Story: FIN-14 / FS-01-03 | SRS: FR-P1-12 | Test Case: TC_AUTHSEC_003 | Level: Route Integration | Status: PASS
+- FN-AUTH-004: apps/api/app/main.py enroll_mfa_factor
+  Responsibility: Initiate TOTP MFA factor enrollment for authenticated user.
+  Story: FIN-14 / FS-01-03 | SRS: FR-P1-11 | Test Case: TC_AUTHSEC_003 | Level: Route Integration | Status: PASS
+- FN-AUTH-005: apps/api/app/main.py activate_mfa_factor
+  Responsibility: Activate pending TOTP MFA factor using valid verification code.
+  Story: FIN-14 / FS-01-03 | SRS: FR-P1-11 | Test Case: TC_AUTHSEC_003 | Level: Route Integration | Status: PASS
+- FN-AUTH-006: apps/api/app/main.py verify_mfa_login
+  Responsibility: Verify MFA challenge code and issue active user session.
+  Story: FIN-14 / FS-01-03 | SRS: FR-P1-11 | Test Case: TC_AUTHSEC_003 | Level: Route Integration | Status: PASS
+- FN-AUTH-007: apps/api/app/main.py get_mfa_factors
+  Responsibility: List MFA factors for authenticated user.
+  Story: FIN-14 / FS-01-03 | SRS: FR-P1-11 | Test Case: TC_AUTHSEC_003 | Level: Route Integration | Status: PASS
+- FN-AUTH-008: apps/api/app/main.py delete_mfa_factor
+  Responsibility: Revoke MFA factor and delete its secret reference.
+  Story: FIN-14 / FS-01-03 | SRS: FR-P1-11 | Test Case: TC_AUTHSEC_003 | Level: Route Integration | Status: PASS
+
+Verification Evidence & Test Results:
+- Full API Test Suite: 157 passed, 0 failed, 25 warnings in 4.88s. Command: DATABASE_URL=postgresql:///finsight_fin15_test .venv/bin/pytest -v apps/api/tests
+- TC_AUTHSEC_001: PASS. apps/api/tests/test_audit_immutability.py, test_audit_service.py, test_fin14_auth_security.py. Database-level trigger immutability verified; secret redaction and correlation ID propagation verified.
+- TC_AUTHSEC_002: PASS. apps/api/tests/test_throttle.py, test_fin14_auth_security.py. Lockout window expiration and successful retry verified via test_throttle_expires_and_correct_login_succeeds_after_retry.
+- TC_AUTHSEC_003: PASS. apps/api/tests/test_auth.py, test_secret_store.py, test_totp.py, test_mfa_repository.py, test_mfa_challenge_repository.py. OpenBao KV v2 secret store adapter roundtrip/delete verified; session listing and cross-session revocation verified.
+
+
+FIN-16 / FS-01-04 — VERIFIED IMPLEMENTATION & TRACEABILITY (2026-10-27)
+
+Registered Function IDs:
+- FN-CONN-001: apps/api/app/connection_repository.py create_user_connection
+  Responsibility: Create and store user-owned data connection metadata with Release 1 read-only constraint.
+  Story: FIN-16 / FS-01-04 | SRS: FR-P1-15, NFR-P9-02 | Test Case: TC_AUTHSEC_004 | Level: Unit/Repository | Status: PASS
+- FN-CONN-002: apps/api/app/connection_repository.py list_user_connections
+  Responsibility: List data connections strictly owned by authenticated user.
+  Story: FIN-16 / FS-01-04 | SRS: FR-P1-15 | Test Case: TC_AUTHSEC_004 | Level: Unit/Repository | Status: PASS
+- FN-CONN-003: apps/api/app/connection_repository.py get_user_connection
+  Responsibility: Retrieve single connection verifying strict caller ownership.
+  Story: FIN-16 / FS-01-04 | SRS: FR-P1-15 | Test Case: TC_AUTHSEC_004 | Level: Unit/Repository | Status: PASS
+- FN-CONN-004: apps/api/app/connection_repository.py delete_user_connection
+  Responsibility: Revoke user-owned connection verifying caller ownership.
+  Story: FIN-16 / FS-01-04 | SRS: FR-P1-15 | Test Case: TC_AUTHSEC_004 | Level: Unit/Repository | Status: PASS
+- FN-BOUND-001: apps/api/app/main.py _verify_step_up_if_required
+  Responsibility: Enforce step-up authentication check for sensitive actions when MFA is active.
+  Story: FIN-16 / FS-01-04 | SRS: FR-P1-13 | Test Case: TC_AUTHSEC_004 | Level: Route Middleware/Dependency | Status: PASS
+- FN-BOUND-002: apps/api/app/main.py reject_release_1_trading_orders
+  Responsibility: Hard barrier blocking live broker order execution in Release 1.
+  Story: FIN-16 / FS-01-04 | SRS: FR-P1-14, FR-P3-36 | Test Case: TC_BOUNDARY_001 | Level: Route Boundary Barrier | Status: PASS
+
+Verification Evidence & Test Results:
+- Full API Test Suite: 164 passed, 0 failed, 34 warnings in 5.45s. Command: DATABASE_URL=postgresql:///finsight_fin15_test .venv/bin/pytest -q apps/api/tests
+- Focused FIN-16 Boundary Suite: 7 passed, 0 failed. Command: DATABASE_URL=postgresql:///finsight_fin15_test .venv/bin/pytest -v apps/api/tests/test_fin16_boundary.py
+- TC_AUTHSEC_004: PASS. Verified that User A cannot access or mutate User B connections; connection listing is owner-scoped; secret references are not leaked; trade-capable connections fail closed.
+- TC_BOUNDARY_001: PASS. Verified that Release 1 rejects order submission endpoints with 403 Forbidden boundary errors; database schema excludes optional trading tables; migration 0007 enforces chk_release1_read_only_no_trade.

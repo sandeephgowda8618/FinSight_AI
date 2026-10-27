@@ -51,7 +51,7 @@ def package(frontend_dir: Path, version: str, commit_sha: str | None, output_dir
             "commit_sha": commit_sha,
             "frontend": {"runtime": "Node.js 22", "entrypoint": "node frontend/server.js"},
             "backend": {"runtime": "Python 3.12", "entrypoint": "python -m uvicorn app.main:app"},
-            "database_migrations": ["0001_auth_identity.sql", "0002_platform_authorization.sql"],
+            "database_migrations": ["0001_auth_identity.sql", "0002_platform_authorization.sql", "0003_auth_audit_and_login_throttling.sql", "0004_immutable_auth_audit.sql", "0005_mfa_factors.sql", "0006_mfa_login_challenges.sql"],
             "configuration": "Runtime values are supplied through environment variables; see RELEASE_README.md.",
         }
         (payload / "RELEASE-METADATA.json").write_text(json.dumps(metadata, indent=2) + "\n", encoding="utf-8")

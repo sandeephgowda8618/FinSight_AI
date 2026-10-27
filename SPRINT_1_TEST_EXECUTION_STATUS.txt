@@ -94,10 +94,10 @@ TC_AUTHN_005 | Status: BLOCKED | Execution date: 2026-10-18 | Actual result: Pub
 TC_AUTHZ_001 | Status: NOT RUN | Execution date: — | Actual result: — | Tester/owner: — | Evidence: — | Linked defect: —
 TC_AUTHZ_002 | Status: NOT RUN | Execution date: — | Actual result: — | Tester/owner: — | Evidence: — | Linked defect: —
 TC_AUTHZ_003 | Status: PASS | Execution date: 2026-10-18 | Actual result: Stale session rejected under configured TTL | Tester/owner: Codex | Evidence: apps/api/tests/test_auth.py | Linked defect: —
-TC_AUTHSEC_001 | Status: NOT RUN | Execution date: — | Actual result: — | Tester/owner: — | Evidence: — | Linked defect: —
-TC_AUTHSEC_002 | Status: NOT RUN | Execution date: — | Actual result: — | Tester/owner: — | Evidence: — | Linked defect: —
-TC_AUTHSEC_003 | Status: NOT RUN | Execution date: — | Actual result: — | Tester/owner: — | Evidence: — | Linked defect: —
-TC_AUTHSEC_004 | Status: NOT RUN | Execution date: — | Actual result: — | Tester/owner: — | Evidence: — | Linked defect: —
+TC_AUTHSEC_001 | Status: PASS | Execution date: 2026-10-27 | Actual result: Authentication event logging, secret redaction, request correlation, and database trigger-enforced immutability verified | Tester/owner: Codex | Evidence: apps/api/tests/test_audit_immutability.py; apps/api/tests/test_audit_service.py; apps/api/tests/test_fin14_auth_security.py | Linked defect: —
+TC_AUTHSEC_002 | Status: PASS | Execution date: 2026-10-27 | Actual result: Account and IP throttling, lockout window enforcement, and complete lockout expiry with successful retry verified | Tester/owner: Codex | Evidence: apps/api/tests/test_throttle.py; apps/api/tests/test_fin14_auth_security.py | Linked defect: —
+TC_AUTHSEC_003 | Status: PASS | Execution date: 2026-10-27 | Actual result: OpenBao KV v2 secret store adapter, TOTP enrollment/activation/verification lifecycle, factor revocation, replay guard, and active session listing/termination verified | Tester/owner: Codex | Evidence: apps/api/tests/test_auth.py; apps/api/tests/test_secret_store.py; apps/api/tests/test_totp.py; apps/api/tests/test_mfa_repository.py; apps/api/tests/test_mfa_challenge_repository.py | Linked defect: —
+TC_AUTHSEC_004 | Status: PASS | Execution date: 2026-10-27 | Actual result: Connection ownership enforced by user_id; cross-user connection access and mutation denied with 404/403; trade-capable connections fail closed | Tester/owner: Codex | Evidence: apps/api/tests/test_fin16_boundary.py | Linked defect: —
 TC_AUTHN_006 | Status: PASS | Execution date: 2026-10-18 | Actual result: Disposable synthetic database dump contained password/session digests; plaintext password/token absent; API test checked captured logs/stdout/stderr and response | Tester/owner: Codex | Evidence: apps/api/tests/test_auth.py; disposable scan summarized in IMPLEMENTATION_STATUS.txt (dump removed) | Linked defect: —
 TC_AUTHN_007 | Status: BLOCKED | Execution date: 2026-10-18 | Actual result: Local cookie flags checked; deployed HTTPS verification unavailable | Tester/owner: Codex | Evidence: apps/api/tests/test_auth.py | Linked defect: —
 TC_AUTHN_008 | Status: NOT RUN | Execution date: — | Actual result: — | Tester/owner: — | Evidence: — | Linked defect: —
@@ -120,7 +120,7 @@ TC_DASH_001 | Status: NOT RUN | Execution date: — | Actual result: — | Teste
 TC_DASH_002 | Status: NOT RUN | Execution date: — | Actual result: — | Tester/owner: — | Evidence: — | Linked defect: —
 TC_INT_001 | Status: NOT RUN | Execution date: — | Actual result: — | Tester/owner: — | Evidence: — | Linked defect: —
 TC_SYS_001 | Status: NOT RUN | Execution date: — | Actual result: — | Tester/owner: — | Evidence: — | Linked defect: —
-TC_BOUNDARY_001 | Status: NOT RUN | Execution date: — | Actual result: — | Tester/owner: — | Evidence: — | Linked defect: —
+TC_BOUNDARY_001 | Status: PASS | Execution date: 2026-10-27 | Actual result: Release 1 trading barrier strictly excludes live broker order execution routes; database schema excludes optional trading tables; migration 0007 enforces chk_release1_read_only_no_trade | Tester/owner: Codex | Evidence: apps/api/tests/test_fin16_boundary.py | Linked defect: —
 
 Additional test evidence — 2026-10-20
 - Command: DATABASE_URL="postgresql:///finsight_test" python -m pytest -q tests/test_identity_constraints.py
@@ -205,3 +205,80 @@ NOT RUN for the full planned system acceptance workflow.
 
 Overall FIN-15 / FS-01-02 status: PARTIAL, not accepted or VERIFIED COMPLETE.
 Workspace/resource authorization remains deferred. FIN-14 is unchanged.
+
+
+FIN-14 / FS-01-03 — AUTHENTICATION SECURITY EXECUTION ADDENDUM
+Execution date: 2026-10-21
+Tester/owner: Codex
+Environment: dedicated local PostgreSQL test database finsight_fin15_test.
+
+Observed verification:
+- Focused authentication/security suites: 66 passed, 0 failed, 10 warnings.
+- Full API suite: 82 passed, 0 failed, 19 warnings.
+- Local release-package validation included migration 0003, audit/throttle modules,
+  metadata, and checksum verification.
+- Warnings were reported as test-client deprecations; no test failures occurred.
+
+Acceptance-case reconciliation:
+- TC_AUTHSEC_001: PARTIAL. Login success/failure and logout audit events,
+  plus secret-redaction behavior, have tests. Complete correlation propagation
+  and database-level append-only enforcement have not been established.
+- TC_AUTHSEC_002: PARTIAL. Configurable PostgreSQL-backed throttling and
+  repeated-failure blocking are implemented. Throttle behavior/expiry has
+  been tested, but the complete login-level expiry-and-successful-retry flow
+  is not established by the recorded integration tests.
+- TC_AUTHSEC_003: BLOCKED. MFA enforcement and listing/terminating other
+  active sessions are not implemented. Existing logout only revokes the
+  session presented to that request.
+
+Overall FIN-14 / FS-01-03 status: PARTIAL, not accepted or VERIFIED COMPLETE.
+No source requirements, schema reference documents, diagrams, or original test
+plan were changed. No commit or push was performed.
+
+FIN-14 — LATEST VERIFICATION ADDENDUM (2026-10-21)
+
+- Focused FIN-14 security suite: 7 passed, 0 failed, 3 warnings.
+- Full API suite: 86 passed, 0 failed, 19 warnings.
+- Correlation ID propagation is verified for supplied and generated IDs.
+- TC_AUTHSEC_001 remains PARTIAL: database-level append-only enforcement is unverified.
+- TC_AUTHSEC_002 remains PARTIAL: complete login-level expiry and successful retry are unestablished.
+- TC_AUTHSEC_003 remains BLOCKED: MFA and cross-session inspection/termination are not implemented.
+
+
+FIN-14 / MFA — TEST EXECUTION ADDENDUM (2026-10-23)
+
+Environment: local dedicated PostgreSQL test database finsight_fin15_test.
+
+- Full API suite: 150 passed, 0 failed, 25 warnings in 6.19 seconds.
+- Focused MFA repository and authentication tests: 30 passed, 0 failed.
+- Covered behaviors include factor revocation, retryable secret cleanup,
+  secret-reference clearing after successful cleanup, and cross-user revocation
+  rejection.
+- Warnings are test-client/dependency deprecations; no tests failed.
+- This is local test evidence only, not production or release-deployment evidence.
+- Overall FIN-14 remains PARTIAL; full acceptance criteria are not all verified.
+- No commit or push performed.
+
+FIN-14 / MFA & AUTH SECURITY — FINAL VERIFICATION ADDENDUM (2026-10-27)
+Environment: dedicated local PostgreSQL database finsight_fin15_test.
+
+- Full API suite: 157 passed, 0 failed, 25 warnings in 4.88 seconds.
+- Verified test cases:
+  * TC_AUTHSEC_001 -> PASS (audit immutability, correlation ID propagation, secret redaction)
+  * TC_AUTHSEC_002 -> PASS (throttling, lockout window enforcement, lockout expiry retry)
+  * TC_AUTHSEC_003 -> PASS (OpenBao KV v2 secret store adapter, MFA lifecycle, session listing/revocation)
+- Registered Function IDs: FN-SEC-STORE-001..004, FN-AUTH-002..008.
+- Overall FIN-14 / FS-01-03: VERIFIED COMPLETE.
+- No commit or push performed.
+
+FIN-16 / READ-ONLY & TRADING BOUNDARIES — VERIFICATION ADDENDUM (2026-10-27)
+Environment: dedicated local PostgreSQL database finsight_fin15_test.
+
+- Focused boundary suite: 7 passed, 0 failed, 11 warnings in 0.82 seconds (apps/api/tests/test_fin16_boundary.py).
+- Full API suite: 164 passed, 0 failed, 34 warnings in 5.45 seconds.
+- Verified test cases:
+  * TC_AUTHSEC_004 -> PASS (connection ownership isolation, cross-user denial, step-up check on sensitive actions)
+  * TC_BOUNDARY_001 -> PASS (Release 1 trading route exclusion barrier, absence of optional trading schema, chk_release1_read_only_no_trade)
+- Registered Function IDs: FN-CONN-001..004, FN-BOUND-001..002.
+- Overall FIN-16 / FS-01-04: VERIFIED COMPLETE.
+- No commit or push performed.

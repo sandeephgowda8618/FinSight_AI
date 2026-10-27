@@ -125,3 +125,29 @@ FIN-15 implementation update — 2026-10-20
 - Function/test traceability added in FUNCTION_TEST_TRACEABILITY.txt for TC_AUTHZ_001, TC_AUTHZ_002, and related existing session coverage TC_AUTHZ_003.
 - Verification status: implementation edits prepared; tests have NOT RUN after this change. Do not mark FIN-15 VERIFIED COMPLETE until test results and all acceptance criteria are checked.
 - No migrations, commits, pushes, or workspace schema changes performed by this patch script.
+
+
+Q-012 — FIN-14 MFA policy/provider and active-session management — RESOLVED
+Status: RESOLVED & VERIFIED COMPLETE.
+Date resolved: 2026-10-27.
+
+Resolution Summary:
+- Approved MFA policy & architecture: TOTP MFA lifecycle with RFC 6238 compliance and replay protection.
+- Secret management provider: OpenBao KV v2 adapter implemented in apps/api/app/secret_store.py (OpenBaoSecretStore) using path finsight/mfa/<user_uuid>/<factor_uuid>, with TLS configuration and token authentication.
+- Active-session management: GET /auth/sessions and DELETE /auth/sessions/{session_id} implemented and verified.
+- Immutable auditing: Trigger-based append-only enforcement on auth_audit_events verified.
+- Login throttling: Lockout window enforcement and lockout expiry with successful retry verified.
+- Test evidence: 157 passed in API suite. TC_AUTHSEC_001, TC_AUTHSEC_002, and TC_AUTHSEC_003 all updated to PASS. FIN-14 marked VERIFIED COMPLETE.
+- No commit or push performed.
+
+FIN-16 / FS-01-04 — Separate read-only and trading permissions (2026-10-27)
+Status: VERIFIED COMPLETE.
+
+Summary of implementation:
+- Enforced connection ownership: user_connections table (migration 0007_user_connections.sql) strictly scopes all connections to user_id. Cross-user access returns 404 without data disclosure.
+- Enforced Release 1 boundary: chk_release1_read_only_no_trade database constraint and TradeCapabilityProhibitedError prevent storing trade-capable connections.
+- Step-up authentication: sensitive connection operations (create/delete) require valid TOTP verification (X-Step-Up-Code) when MFA is active on the account.
+- Trading endpoint barrier: hard reject_release_1_trading_orders barrier returns 403 Forbidden boundary errors for /api/v1/trading/orders, /api/v1/orders, /orders.
+- Schema verification: confirmed all 15 optional trading tables from schema_optional_trading.sql are absent from Release 1 database.
+- Test evidence: 7 boundary tests in test_fin16_boundary.py passed; full test suite (164 tests) passed. TC_AUTHSEC_004 and TC_BOUNDARY_001 updated to PASS.
+- No commit or push performed.

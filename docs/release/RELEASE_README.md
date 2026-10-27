@@ -15,7 +15,7 @@ On macOS, use `shasum -a 256` and compare its output with the `.sha256` file.
 
 ## Configure and start
 
-Extract the verified archive into a new, versioned release directory. Install a supported Node.js 22 runtime and Python 3.12 runtime. Configure the frontend process with `API_BASE_URL=https://<api-origin>` and the backend process with `DATABASE_URL`, `WEB_ORIGIN`, `SESSION_TTL_MINUTES`, `COOKIE_SECURE=true`, and `APP_ENV=production`. Values containing credentials belong only in the deployment secret manager. Set the web origin exactly to the browser-facing frontend origin; terminate TLS at an approved proxy/load balancer and forward HTTPS safely.
+Extract the verified archive into a new, versioned release directory. Install a supported Node.js 22 runtime and Python 3.12 runtime. Configure the frontend process with `API_BASE_URL=https://<api-origin>` and the backend process with `DATABASE_URL`, `WEB_ORIGIN`, `SESSION_TTL_MINUTES`, `COOKIE_SECURE=true`, `APP_ENV=production`, `AUTH_THROTTLE_SECRET`, `AUTH_LOGIN_MAX_FAILURES`, `AUTH_LOGIN_WINDOW_SECONDS`, and `AUTH_LOGIN_BLOCK_SECONDS`. Generate a unique random `AUTH_THROTTLE_SECRET` of at least 32 bytes and keep it in the deployment secret manager. Rotating this secret changes throttle identifiers and makes existing throttle buckets inaccessible. Values containing credentials belong only in the deployment secret manager. Set the web origin exactly to the browser-facing frontend origin; terminate TLS at an approved proxy/load balancer and forward HTTPS safely.
 
 For the frontend, from the extracted bundle root:
 
@@ -52,3 +52,13 @@ Database migration policy for safe application rollback:
 ## Deployment prerequisite
 
 Before deployment is automated, the deployment owner must choose the hosting target and staging/production topology, configure protected environments and secret references, establish TLS and database network policy, define migration ownership, backups/RTO/RPO, monitoring/readiness, and approval gates. No deployment target or credentials are configured by this repository task. No deployment has been performed.
+
+## MFA production readiness limitation
+
+The current MFA secret-store selector deliberately rejects `APP_ENV=production`
+because no production secret-store provider is configured. The fake backend is
+for tests only, and the encrypted file backend is development-only. Do not
+enable or rely on MFA in a production deployment until an approved production
+secret-store provider is implemented, configured, and tested. A passing local
+API test suite does not establish production MFA readiness. This limitation
+must be resolved before claiming production-ready MFA support.
