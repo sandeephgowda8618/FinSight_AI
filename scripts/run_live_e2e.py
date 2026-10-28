@@ -77,6 +77,11 @@ def main() -> int:
         "E2E_PASSWORD": password,
         "E2E_BASE_URL": f"http://127.0.0.1:{web_port}",
         "NEXT_TELEMETRY_DISABLED": "1",
+        "AUTH_THROTTLE_SECRET": os.environ.get(
+            "AUTH_THROTTLE_SECRET",
+            "ci-synthetic-e2e-throttle-secret-of-32-bytes!",
+        ),
+        "MFA_SECRET_STORE_BACKEND": "fake",
     })
     api: subprocess.Popen[bytes] | None = None
     web: subprocess.Popen[bytes] | None = None
@@ -126,7 +131,10 @@ def main() -> int:
         stop(api)
         if user_id is not None:
             with connect() as conn, conn.cursor() as cur:
-                cur.execute("DELETE FROM users WHERE user_id = %s", (user_id,))
+                cur.execute(
+                    "UPDATE users SET account_status = 'deleted', deleted_at = now() WHERE user_id = %s",
+                    (user_id,),
+                )
 
 
 if __name__ == "__main__":

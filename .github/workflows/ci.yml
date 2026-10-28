@@ -95,6 +95,8 @@ jobs:
       SESSION_TTL_MINUTES: "60"
       COOKIE_SECURE: "false"
       APP_ENV: test
+      AUTH_THROTTLE_SECRET: ci-disposable-throttle-secret-must-have-32-bytes!
+      MFA_SECRET_STORE_BACKEND: fake
     steps:
       - name: Check out source
         uses: actions/checkout@v7
@@ -187,6 +189,8 @@ jobs:
       COOKIE_SECURE: "false"
       APP_ENV: test
       FRONTEND_DIR: ${{ github.workspace }}/.release-frontend/standalone
+      AUTH_THROTTLE_SECRET: ci-disposable-throttle-secret-must-have-32-bytes!
+      MFA_SECRET_STORE_BACKEND: fake
     steps:
       - name: Check out source
         uses: actions/checkout@v7
