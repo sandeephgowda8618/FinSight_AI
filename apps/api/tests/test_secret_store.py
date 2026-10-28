@@ -247,4 +247,3 @@ def test_openbao_environment_configuration_rejects_missing_token(monkeypatch):
 
     with pytest.raises(SecretStoreConfigurationError, match="requires OPENBAO_TOKEN"):
         secret_store_from_environment()
-

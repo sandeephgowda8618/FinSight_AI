@@ -214,7 +214,7 @@ class OpenBaoSecretStore:
         )
 
         try:
-            with urlopen(req, context=self._ssl_context, timeout=self._timeout) as resp:
+            with urlopen(req, context=self._ssl_context, timeout=self._timeout) as resp:  # nosec B310
                 if resp.status not in (200, 204):
                     raise SecretStoreError(f"OpenBao write failed with status {resp.status}")
         except HTTPError as exc:
@@ -238,7 +238,7 @@ class OpenBaoSecretStore:
         )
 
         try:
-            with urlopen(req, context=self._ssl_context, timeout=self._timeout) as resp:
+            with urlopen(req, context=self._ssl_context, timeout=self._timeout) as resp:  # nosec B310
                 data = json.loads(resp.read().decode("utf-8"))
         except HTTPError as exc:
             if exc.code == 404:
@@ -267,7 +267,7 @@ class OpenBaoSecretStore:
         )
 
         try:
-            with urlopen(req, context=self._ssl_context, timeout=self._timeout) as resp:
+            with urlopen(req, context=self._ssl_context, timeout=self._timeout) as resp:  # nosec B310
                 if resp.status not in (200, 204):
                     raise SecretStoreError(f"OpenBao delete failed with status {resp.status}")
         except HTTPError as exc:

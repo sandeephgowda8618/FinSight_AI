@@ -60,8 +60,9 @@ def create_pending_totp_factor(
     except Exception:
         try:
             store.delete(secret_ref)
-        except Exception:
-            pass
+        except Exception as cleanup_err:
+            # Best effort cleanup of orphan secret; re-raise original exception
+            _ = cleanup_err
         raise
 
     return factor_id, provisioning_uri

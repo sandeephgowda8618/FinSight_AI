@@ -55,7 +55,8 @@ def create_user_connection(
             (user_id, connection_name, connection_type, secret_ref),
         )
         row = cur.fetchone()
-        assert row is not None
+        if row is None:
+            raise RuntimeError("Failed to insert connection")
         return dict(row)
 
 
@@ -109,4 +110,3 @@ def delete_user_connection(*, user_id: UUID, connection_id: UUID) -> bool:
             (connection_id, user_id),
         )
         return cur.fetchone() is not None
-

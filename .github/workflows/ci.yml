@@ -128,6 +128,16 @@ jobs:
         run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f apps/api/migrations/0001_auth_identity.sql
       - name: Apply platform authorization migration to disposable CI database
         run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f apps/api/migrations/0002_platform_authorization.sql
+      - name: Apply auth audit and login throttling migration to disposable CI database
+        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f apps/api/migrations/0003_auth_audit_and_login_throttling.sql
+      - name: Apply immutable auth audit migration to disposable CI database
+        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f apps/api/migrations/0004_immutable_auth_audit.sql
+      - name: Apply MFA factors migration to disposable CI database
+        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f apps/api/migrations/0005_mfa_factors.sql
+      - name: Apply MFA login challenges migration to disposable CI database
+        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f apps/api/migrations/0006_mfa_login_challenges.sql
+      - name: Apply user connections migration to disposable CI database
+        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f apps/api/migrations/0007_user_connections.sql
       - name: Compile backend and tests
         run: python -m compileall -q apps/api/app apps/api/tests
       - name: Run backend unit tests and collect coverage
@@ -139,7 +149,7 @@ jobs:
         run: >-
           python -m pytest -q --cov=app --cov-branch --cov-append --cov-report=term-missing
           --cov-report=xml:coverage.xml --cov-report=html:htmlcov
-          apps/api/tests/test_auth.py apps/api/tests/test_identity_constraints.py
+          apps/api/tests
       - name: Upload backend coverage report
         if: always()
         uses: actions/upload-artifact@v4
@@ -218,6 +228,16 @@ jobs:
         run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f apps/api/migrations/0001_auth_identity.sql
       - name: Apply platform authorization migration to disposable E2E database
         run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f apps/api/migrations/0002_platform_authorization.sql
+      - name: Apply auth audit and login throttling migration to disposable E2E database
+        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f apps/api/migrations/0003_auth_audit_and_login_throttling.sql
+      - name: Apply immutable auth audit migration to disposable E2E database
+        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f apps/api/migrations/0004_immutable_auth_audit.sql
+      - name: Apply MFA factors migration to disposable E2E database
+        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f apps/api/migrations/0005_mfa_factors.sql
+      - name: Apply MFA login challenges migration to disposable E2E database
+        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f apps/api/migrations/0006_mfa_login_challenges.sql
+      - name: Apply user connections migration to disposable E2E database
+        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f apps/api/migrations/0007_user_connections.sql
       - name: Run live browser authentication smoke
         run: python scripts/run_live_e2e.py
       - name: Upload live browser smoke report

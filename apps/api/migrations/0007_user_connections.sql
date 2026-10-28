@@ -22,4 +22,3 @@ CREATE TABLE IF NOT EXISTS user_connections (
 CREATE INDEX IF NOT EXISTS idx_user_connections_user_id ON user_connections(user_id);
 
 COMMIT;
-
