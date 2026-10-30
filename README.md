@@ -74,6 +74,12 @@ The current Playwright setup reports interaction results but does not instrument
 - The browser suite needs Playwright Chromium (`npx playwright install chromium`). PostgreSQL integration and live smoke require the disposable identity schema; tests do not apply migrations to a database automatically.
 - For deployed environments, use HTTPS and set `COOKIE_SECURE=true`. Do not use the development HTTP cookie setting outside loopback development.
 
+## Continuous integration
+
+`.github/workflows/ci.yml` runs for every pull request and for pushes to `main` and version tags. Frontend interaction/build, backend migration/tests, browser smoke, repository hygiene, dependency/security scanning, and release packaging run as separate jobs. The `Required quality gates` job reports failure unless every required job succeeds, including jobs that are cancelled or skipped. Playwright UI and E2E reports are retained as workflow artifacts for 14 days; a missing expected report fails its upload step.
+
+To make the default branch reject changes with failing checks, repository administrators must require the `CI quality gates / Required quality gates` status check in GitHub branch protection or a repository ruleset. Workflow YAML cannot enable that repository setting. No branch-protection setting is configured by this repository change.
+
 ## Repository layout
 
 ```text

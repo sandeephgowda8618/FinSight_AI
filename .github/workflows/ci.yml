@@ -52,7 +52,7 @@ jobs:
         with:
           name: frontend-ui-test-report
           path: apps/web/test-results/ui/results.xml
-          if-no-files-found: ignore
+          if-no-files-found: error
           retention-days: 14
       - name: Build production frontend
         run: npm run build
@@ -250,7 +250,7 @@ jobs:
         with:
           name: live-browser-test-report
           path: apps/web/test-results/e2e/results.xml
-          if-no-files-found: ignore
+          if-no-files-found: error
           retention-days: 14
 
   hygiene:
@@ -385,3 +385,19 @@ jobs:
             dist/*.build-info.json
           if-no-files-found: error
           retention-days: 90
+
+  required-check:
+    name: Required quality gates
+    needs: [frontend, backend, e2e, hygiene, dependency-security, release-package]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Fail unless every quality job succeeded
+        env:
+          CI_NEEDS_JSON: ${{ toJSON(needs) }}
+        run: python scripts/ci_gate.py

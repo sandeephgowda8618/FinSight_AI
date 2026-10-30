@@ -625,3 +625,22 @@ Execution Evidence:
   Result: Clean. Exit code: 0.
 
 No commits, pushes, or Jira modifications performed.
+
+FIN-73 follow-up — 2026-10-29 (implementation now reconciled into local branch feat/FIN-73-ci-quality-gates)
+Status remains PARTIAL. Added a stable `Required quality gates` aggregate job after all six existing jobs. It runs with `always()` and fails unless each dependency reports `success`, including skipped/cancelled/missing outcomes. Configured UI and E2E report uploads to fail when reports are missing; README documents the check name to require in repository rules. No new dependencies were added.
+
+Changed paths: `.github/workflows/ci.yml`, `README.md`, `docs/architecture/README.md`, `scripts/ci_gate.py`, `apps/api/tests/test_ci_gate.py`, `FUNCTION_TEST_TRACEABILITY.txt`, `SPRINT_1_TEST_EXECUTION_STATUS.txt`, `IMPLEMENTATION_STATUS.txt`, `conversation.txt`.
+
+Local evidence: TDD red run initially failed at import because `scripts.ci_gate` did not yet exist; green run of `/Users/sandeeph/Documents/NVDIA_Play_Book/FinSight_AI/.venv/bin/python -m pytest -q apps/api/tests/test_ci_gate.py` passed (6 passed). The earlier implementation used a dedicated worktree based on the verified `origin/main` SHA. No commit, push, Jira mutation, or GitHub settings change was made.
+
+External evidence/blockers: prior read-only GitHub inspection found the latest main push run for SHA `1f064391d2e4c7b25d30c72ba6bf09314d8fbf5a` succeeded (run 40626168447); no pull-request runs were returned. Rulesets query returned an empty list; branch-protection query returned HTTP 403 (permission unavailable). This is historical evidence, not a fresh remote check. PR execution, negative PR enforcement, required-check configuration, and report retention on GitHub remain unverified. Require `CI quality gates / Required quality gates` in repository branch protection and run a PR (including a safe failing-check validation) before FIN-73 can be VERIFIED COMPLETE. No source reference artifact was changed.
+
+FIN-73 local reconciliation verification — 2026-10-30
+Status: PARTIAL. The transfer to the required local directory is verified, and the source test inventory mismatch was corrected: the supplied test plan has TC_CI_001 and TC_CI_002, not TC_CI_003. Helper tests are recorded only as supplemental evidence; TC_CI_001/002 remain blocked on actual GitHub PR and merge-rule evidence.
+Commands/results:
+- `python -m pytest -q apps/api/tests/test_ci_gate.py`: PASS, exit 0, 9 passed.
+- `python -m py_compile scripts/ci_gate.py apps/api/tests/test_ci_gate.py`: PASS, exit 0.
+- Inline workflow validation (PyYAML BaseLoader, `bash -n` for each inline `run`): PASS, exit 0; pull_request trigger, aggregate job/dependency parity, `always()`, and 14-day UI/E2E artifact retention with missing-file failure verified.
+- `python3 scripts/validate_traceability.py`: PASS, exit 0; 409 source requirement IDs, 72 story aliases, 54 source test IDs; 81 unmapped requirements and 305 without linked Sprint 1 tests reported as pre-existing gaps.
+- Inline CSV validation: PASS, exit 0; story traceability 72 rows/13 columns and API endpoint catalog 172 rows/13 columns, UTF-8 and consistent field counts.
+- A complete GitHub workflow run, branch-protection/ruleset verification, the negative disposable-PR test, and GitHub artifact inspection were not run. Existing reports from 2026-10-29 are historical only. No commit, push, Jira change, or remote settings change.
