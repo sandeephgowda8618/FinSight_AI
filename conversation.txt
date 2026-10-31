@@ -151,3 +151,37 @@ Summary of implementation:
 - Schema verification: confirmed all 15 optional trading tables from schema_optional_trading.sql are absent from Release 1 database.
 - Test evidence: 7 boundary tests in test_fin16_boundary.py passed; full test suite (164 tests) passed. TC_AUTHSEC_004 and TC_BOUNDARY_001 updated to PASS.
 - No commit or push performed.
+
+FIN-73 follow-up (2026-10-29): Implemented the aggregate required-check job and strict missing-report artifact handling on isolated branch `feat/FIN-73-ci-quality-gates` in `/private/tmp/FinSight-FIN73`. Jira acceptance remains PARTIAL: supplemental local aggregate tests passed, but no PR workflow execution exists. Read-only GitHub checks found no rulesets; branch-protection query returned 403. No GitHub/Jira settings changed. Next action: publish this branch, configure required check `CI quality gates / Required quality gates`, run a PR and safe negative-check validation, and verify retained UI/E2E reports. Source test cases TC_CI_001/002 remain BLOCKED until their PR conditions are evidenced.
+
+FIN-73 local-path reconciliation (2026-10-30): Verified project root `/Users/sandeeph/Documents/NVDIA_Play_Book/FinSight_AI`; switched this folder to `feat/FIN-73-ci-quality-gates`. Preserved pre-existing FIN-83 changes in a named stash and the previous FIN-73 partial implementation in a second named stash before applying that FIN-73 work here; all older FIN-17/FIN-78 stashes and worktrees were retained. Found that the previous tracking incorrectly presented `TC_CI_003` as a supplied test-plan ID; the source plan defines only TC_CI_001 and TC_CI_002. Reconciled the record to describe the aggregate helper tests as supplemental local evidence and retained both source test cases as BLOCKED pending GitHub PR evidence. No Jira, commit, push, or remote setting change.
+
+FIN-73 end-to-end completion and verification (2026-10-30 / 2026-10-31):
+Status: FIN-73 — VERIFIED COMPLETE (Implementation)
+PR State: PR #1 — OPEN, AWAITING REVIEW AND MERGE DECISION
+- Pushed branch `feat/FIN-73-ci-quality-gates` to `origin` (commits `0fe428f7bb58d395b6904194f271e76847b8f659` and `b2336a401e837dbce9fdb712fbcf4dcde4e3847c`) using authenticated account `sandeephgowda8618` and commit author `sandeepgowda8618 <sandeephgowda8618@gmail.com>`.
+- Opened PR #1 (https://github.com/sandeephgowda8618/FinSight_AI/pull/1) targeting `main`.
+- Verified GitHub Actions runs 41067212094 and 41185982394 succeeded across all 7 jobs: Frontend lockfile/build, Hygiene, Dependency security, Backend dependencies/migration/tests, E2E browser smoke, Release package assembly, and aggregate `Required quality gates`.
+- Configured branch protection on `main` requiring context `Required quality gates` via GitHub API (`PUT /repos/sandeephgowda8618/FinSight_AI/branches/main/protection`).
+- Executed negative verification on disposable PR #2 (run 41068574957) with sentinel failure `CI_GATE_SENTINEL`. Proved that backend failure causes downstream skips and aggregate `Required quality gates` fails with exit code 1, successfully blocking the PR merge gate. Closed PR #2 and cleanly removed disposable branch. Recovery verified via green PR #1.
+- Confirmed artifact retention for test reports (UI, E2E), backend coverage, and release packages.
+- Both source-plan test cases TC_CI_001 and TC_CI_002 are now PASS.
+- No Jira mutation performed.
+
+
+FIN-81 / FS-11-10 — Manage baselines, bugs, versions, SBOM and release notes (2026-10-31)
+Status: FIN-81 — VERIFIED COMPLETE (Implementation)
+Branch: `feat/FIN-81-release-management` (stacked on `feat/FIN-73-ci-quality-gates` / PR #1)
+- Version baseline established at 0.1.0 with root `CHANGELOG.md` adhering to Keep a Changelog 1.0.0 and SemVer 2.0.0.
+- Auditable defect registry established in `docs/release/DEFECT_REGISTRY.md` mapping triage items DEF-001 through DEF-005 to executable regression test files and functions in `apps/api/tests/`.
+- Automated CycloneDX 1.5 JSON SBOM generation implemented in `scripts/generate_sbom.py`, covering 23 locked Python packages from `apps/api/requirements.lock` and locked npm packages from `apps/web/package-lock.json`.
+- Enhanced `scripts/package_release.py` to bundle the CycloneDX SBOM, CHANGELOG.md, and dynamically discovered database migrations (including `0007_user_connections.sql`). Updated release metadata to include dependency inventory counts.
+- Updated `.github/workflows/ci.yml` to upload generated SBOM artifacts alongside release tarballs.
+- Updated release documentation in `docs/release/RELEASE_README.md`.
+- Automated TDD tests in `apps/api/tests/test_release_management.py` (5 tests passing).
+- Source test case TC_REL_001 updated to PASS in `SPRINT_1_TEST_EXECUTION_STATUS.txt`.
+- RTM and story traceability registers updated and validated via `scripts/validate_traceability.py`.
+- Pull Request #3 opened: https://github.com/sandeephgowda8618/FinSight_AI/pull/3 targeting `main` (stacked on PR #1).
+- GitHub Actions run 41204746544 SUCCESS across all 7 jobs: Frontend lockfile/build, Hygiene, Dependency security, Backend dependencies/migration/tests, E2E browser smoke, Release package assembly, and aggregate `Required quality gates`.
+- Verified release package artifacts include CycloneDX SBOM `finsight-0.1.0-bbf47db992a2d787b320e474fa5a80f5c366f9aa`.
+- No destructive Git commands, stashes preserved, no Jira mutation performed.
