@@ -222,3 +222,21 @@ Verification Evidence & Test Results:
 - Focused FIN-16 Boundary Suite: 7 passed, 0 failed. Command: DATABASE_URL=postgresql:///finsight_fin15_test .venv/bin/pytest -v apps/api/tests/test_fin16_boundary.py
 - TC_AUTHSEC_004: PASS. Verified that User A cannot access or mutate User B connections; connection listing is owner-scoped; secret references are not leaked; trade-capable connections fail closed.
 - TC_BOUNDARY_001: PASS. Verified that Release 1 rejects order submission endpoints with 403 Forbidden boundary errors; database schema excludes optional trading tables; migration 0007 enforces chk_release1_read_only_no_trade.
+
+
+FIN-81 / FS-11-10 — VERIFIED IMPLEMENTATION & TRACEABILITY (2026-10-31)
+
+Registered Function IDs:
+- FN-REL-001: scripts/generate_sbom.py generate_cyclonedx_sbom
+  Responsibility: Generate compliant CycloneDX 1.5 JSON Software Bill of Materials covering all locked Python and npm packages.
+  Story: FIN-81 / FS-11-10 | SRS: NFR-G-27, NFR-G-38 | Test Case: TC_REL_001 | Level: Script / Tooling | Status: PASS
+- FN-REL-002: scripts/package_release.py package
+  Responsibility: Bundle application, SBOM, Keep a Changelog notes, and dynamic database migrations into a release archive with SHA-256 and build metadata.
+  Story: FIN-81 / FS-11-10 | SRS: NFR-G-27, NFR-G-38 | Test Case: TC_REL_001 | Level: Packaging / Release Integration | Status: PASS
+- FN-REL-003: docs/release/DEFECT_REGISTRY.md
+  Responsibility: Maintain auditable defect triage linking verified defect IDs to executable regression tests.
+  Story: FIN-81 / FS-11-10 | SRS: NFR-G-27, NFR-G-38 | Test Case: TC_REL_001 | Level: QA / Traceability | Status: PASS
+
+Verification Evidence & Test Results:
+- Release Management Suite: 5 passed, 0 failed in 1.95s. Command: .venv/bin/python -m pytest -v apps/api/tests/test_release_management.py
+- TC_REL_001: PASS. Verified release baseline 0.1.0, Keep a Changelog at repository root, defect registry linking DEF-001..DEF-005 to regression tests, CycloneDX 1.5 JSON SBOM generation with 23 Python requirements and locked frontend dependencies, and verified release packaging bundling all 7 migrations and SBOM.

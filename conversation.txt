@@ -167,3 +167,18 @@ PR State: PR #1 — OPEN, AWAITING REVIEW AND MERGE DECISION
 - Confirmed artifact retention for test reports (UI, E2E), backend coverage, and release packages.
 - Both source-plan test cases TC_CI_001 and TC_CI_002 are now PASS.
 - No Jira mutation performed.
+
+
+FIN-81 / FS-11-10 — Manage baselines, bugs, versions, SBOM and release notes (2026-10-31)
+Status: FIN-81 — VERIFIED COMPLETE (Implementation)
+Branch: `feat/FIN-81-release-management` (stacked on `feat/FIN-73-ci-quality-gates` / PR #1)
+- Version baseline established at 0.1.0 with root `CHANGELOG.md` adhering to Keep a Changelog 1.0.0 and SemVer 2.0.0.
+- Auditable defect registry established in `docs/release/DEFECT_REGISTRY.md` mapping triage items DEF-001 through DEF-005 to executable regression test files and functions in `apps/api/tests/`.
+- Automated CycloneDX 1.5 JSON SBOM generation implemented in `scripts/generate_sbom.py`, covering 23 locked Python packages from `apps/api/requirements.lock` and locked npm packages from `apps/web/package-lock.json`.
+- Enhanced `scripts/package_release.py` to bundle the CycloneDX SBOM, CHANGELOG.md, and dynamically discovered database migrations (including `0007_user_connections.sql`). Updated release metadata to include dependency inventory counts.
+- Updated `.github/workflows/ci.yml` to upload generated SBOM artifacts alongside release tarballs.
+- Updated release documentation in `docs/release/RELEASE_README.md`.
+- Automated TDD tests in `apps/api/tests/test_release_management.py` (5 tests passing).
+- Source test case TC_REL_001 updated to PASS in `SPRINT_1_TEST_EXECUTION_STATUS.txt`.
+- RTM and story traceability registers updated and validated via `scripts/validate_traceability.py`.
+- No destructive Git commands, stashes preserved, no Jira mutation performed.

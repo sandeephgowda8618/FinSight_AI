@@ -383,6 +383,7 @@ jobs:
             dist/*.tar.gz
             dist/*.sha256
             dist/*.build-info.json
+            dist/*-sbom.json
           if-no-files-found: error
           retention-days: 90
 

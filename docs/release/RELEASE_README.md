@@ -4,7 +4,7 @@ This bundle is built by `.github/workflows/ci.yml` after the frontend build, bac
 
 ## Identify and verify a release
 
-CI archives are named `finsight-<version>-<12-character-commit-prefix>.tar.gz`. A local bundle without a source commit is named by version and records a null commit SHA; do not promote such a worktree package as a committed release. `RELEASE-METADATA.json` records the version, full Git commit SHA when available, application entry points, and included migration names. A sibling `.build-info.json` records the UTC packaging timestamp and archive checksum; the `.sha256` file contains the checksum independently. Verify before extracting:
+CI archives are named `finsight-<version>-<12-character-commit-prefix>.tar.gz`. A local bundle without a source commit is named by version and records a null commit SHA; do not promote such a worktree package as a committed release. `RELEASE-METADATA.json` records the version, full Git commit SHA when available, application entry points, included migration names, and dependency inventory counts. A sibling `.build-info.json` records the UTC packaging timestamp and archive checksum; the `.sha256` file contains the checksum independently. Accompanying each release artifact is a CycloneDX 1.5 JSON Software Bill of Materials (SBOM) named `finsight-<version>-<12-character-commit-prefix>-sbom.json`, also bundled inside the tarball as `SBOM.json`. Release notes and version history are captured in `CHANGELOG.md` at the project root and mirrored in the package. Defects discovered and fixed are catalogued in `docs/release/DEFECT_REGISTRY.md` with explicit regression test linkages. Verify before extracting:
 
 ```sh
 sha256sum --check finsight-<version>-<12-character-commit-prefix>.tar.gz.sha256

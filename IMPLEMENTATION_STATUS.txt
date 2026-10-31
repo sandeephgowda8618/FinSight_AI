@@ -669,3 +669,62 @@ Remote GitHub Execution Evidence:
 - Status Outcome: FIN-73 — VERIFIED COMPLETE (Implementation).
 - PR State: PR #1 — OPEN, AWAITING REVIEW AND MERGE DECISION.
 - No Jira status modified (requires explicit separate authorization).
+
+
+FIN-81 / FS-11-10 — Manage baselines, bugs, versions, SBOM and release notes
+Status: VERIFIED COMPLETE
+Jira: FIN-81 (Sprint 1 — Foundation, P1, 2 story points per live Jira)
+Four-Sprint Plan: FS-11-10 (Sprint 1, E11 Engineering Quality / CI/CD)
+Scope: Version baseline, Keep a Changelog release notes, defect-to-regression test registry, CycloneDX 1.5 JSON SBOM generation, locked dependency inventory verification, release packaging integration.
+
+Acceptance Criteria Verification:
+1. Version baseline and changelog exist:
+   - Baseline established at `0.1.0` matching `apps/web/package.json` and release packaging metadata.
+   - `CHANGELOG.md` created at repository root conforming to Keep a Changelog 1.0.0 and Semantic Versioning 2.0.0. Records `[0.1.0]` release candidate, unreleased section, sprint highlights, defect fixes, and security posture.
+2. Bugs link to regression tests:
+   - `docs/release/DEFECT_REGISTRY.md` created tracking defect triage records `DEF-001` through `DEF-005`.
+   - Every defect explicitly links to a valid, executable regression test file and test function:
+     * DEF-001 -> apps/api/tests/test_auth_unit.py::test_login_rejects_invalid_input_before_database_access
+     * DEF-002 -> apps/api/tests/test_throttle.py::test_record_failure_blocks_on_first_failure_when_threshold_is_one
+     * DEF-003 -> apps/api/tests/test_identity_constraints.py::test_identity_schema_rejects_duplicate_email_and_cascades_sessions
+     * DEF-004 -> apps/api/tests/test_auth.py::test_logout_revokes_session_and_replay_fails
+     * DEF-005 -> apps/api/tests/test_ci_gate.py::test_missing_required_job_fails_the_aggregate
+   - Verified by automated test `test_defect_registry_links_to_existing_regression_tests`.
+3. SBOM is generated if tooling/time permits, or the limitation is explicitly recorded:
+   - Implemented standard-library CycloneDX 1.5 JSON SBOM generator in `scripts/generate_sbom.py`.
+   - Tooling produces compliant CycloneDX 1.5 JSON document including metadata, root application component `finsight-ai`, UUID serial number URN, UTC ISO timestamp, package URLs (`purl`), licenses, and SHA-512 hashes.
+   - Integrated into `scripts/package_release.py` to automatically output `finsight-<version>-sbom.json` alongside `.tar.gz`, `.sha256`, and `.build-info.json`, plus bundled internally as `finsight/SBOM.json`.
+   - CI workflow `.github/workflows/ci.yml` updated to include `dist/*-sbom.json` in uploaded release artifacts.
+4. Dependency inventory corresponds to the shipped build:
+   - Parses 23 locked Python packages from `apps/api/requirements.lock` into `pkg:pypi/{name}@{version}`.
+   - Parses locked Node.js production dependencies from `apps/web/package-lock.json` into `pkg:npm/{name}@{version}`.
+   - Verified by automated test `test_dependency_inventory_corresponds_to_shipped_build`.
+   - Packaging metadata records exact dependency inventory counts (`python_locked_packages: 23`, `npm_locked_packages: 57`, `total_sbom_components: 80`).
+   - Dynamically discovers all migrations including `0007_user_connections.sql`.
+
+Changed paths:
+- `scripts/generate_sbom.py` (new)
+- `scripts/package_release.py` (modified: dynamic migrations, SBOM generation, CHANGELOG copy, dependency inventory metadata)
+- `CHANGELOG.md` (new)
+- `docs/release/DEFECT_REGISTRY.md` (new)
+- `docs/release/RELEASE_README.md` (modified: documentation for SBOM, CHANGELOG, and defect triage)
+- `.github/workflows/ci.yml` (modified: artifact upload path includes `dist/*-sbom.json`)
+- `apps/api/tests/test_release_management.py` (new: 5 TDD tests covering SBOM, inventory, packaging, defect linkage, changelog)
+- `docs/requirements/traceability-stories.csv` (modified: FS-11-10 updated to IMPLEMENTED — VERIFIED)
+- `docs/requirements/traceability-matrix.md` (modified: FS-11-10 updated to IMPLEMENTED — VERIFIED)
+- `SPRINT_1_TEST_EXECUTION_STATUS.txt` (modified: TC_REL_001 updated to PASS)
+- `FUNCTION_TEST_TRACEABILITY.txt` (modified: registered FN-REL-001, FN-REL-002, FN-REL-003)
+- `IMPLEMENTATION_STATUS.txt` (modified)
+- `conversation.txt` (modified)
+
+Observed Test Execution:
+- TDD Red phase: 5 failed in `apps/api/tests/test_release_management.py` (missing module, missing files, missing packaging steps).
+- TDD Green phase: `.venv/bin/python -m pytest -v apps/api/tests/test_release_management.py` -> 5 passed in 1.95s.
+- CLI execution: `python3 scripts/generate_sbom.py --version 0.1.0 --output dist/test-sbom.json` -> PASS (80 components).
+- Existing CI gate tests: `.venv/bin/python -m pytest -v apps/api/tests/test_ci_gate.py` -> 9 passed in 0.06s.
+- Offline traceability validation: `python3 scripts/validate_traceability.py` -> PASS (inventories, references, evidence consistent).
+- Whitespace and formatting hygiene: `git diff --check` -> PASS (clean).
+
+Unresolved acceptance criteria: None.
+Blockers: None.
+Status: FIN-81 / FS-11-10 — VERIFIED COMPLETE.
