@@ -78,7 +78,7 @@ The current Playwright setup reports interaction results but does not instrument
 
 `.github/workflows/ci.yml` runs for every pull request and for pushes to `main` and version tags. Frontend interaction/build, backend migration/tests, browser smoke, repository hygiene, dependency/security scanning, and release packaging run as separate jobs. The `Required quality gates` job reports failure unless every required job succeeds, including jobs that are cancelled or skipped. Playwright UI and E2E reports are retained as workflow artifacts for 14 days; a missing expected report fails its upload step.
 
-To make the default branch reject changes with failing checks, repository administrators must require the `CI quality gates / Required quality gates` status check in GitHub branch protection or a repository ruleset. Workflow YAML cannot enable that repository setting. No branch-protection setting is configured by this repository change.
+To make the default branch reject changes with failing checks, branch protection on `main` is configured to require the `Required quality gates` status check. Ordinary pull requests cannot be merged if any required pipeline job fails, is cancelled, or is skipped.
 
 ## Repository layout
 
