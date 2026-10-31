@@ -1,6 +1,6 @@
 # ADR-0005: CI quality gates and versioned release artifacts
 
-- **Status:** Accepted; workflow configured, remote execution pending
+- **Status:** Accepted; workflow implemented, remote execution and branch protection verified (PR #1, runs 41067212094, 41068574957)
 - **Context:** Reproducible builds and visible quality/security checks are required, while no deployment target is configured.
 - **Decision:** Extend one GitHub Actions workflow to validate locked frontend/backend dependencies, tests, builds, hygiene and dependency security before packaging a versioned artifact with commit metadata/checksum where available.
 - **Alternatives considered:** Duplicate CI workflows, unpinned dependency installation, or automatic deployment to an unselected provider. These reduce reproducibility or introduce unapproved operational choices.
