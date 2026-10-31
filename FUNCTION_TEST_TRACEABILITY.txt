@@ -213,6 +213,10 @@ Registered Function IDs:
   Responsibility: Hard barrier blocking live broker order execution in Release 1.
   Story: FIN-16 / FS-01-04 | SRS: FR-P1-14, FR-P3-36 | Test Case: TC_BOUNDARY_001 | Level: Route Boundary Barrier | Status: PASS
 
+- FN-CI-001: scripts/ci_gate.py failed_required_jobs
+  Responsibility: Fail the stable required-check job if any required CI job is missing or does not succeed.
+  Story: FIN-73 / FS-11-02 | SRS: NFR-G-23, NFR-G-27 | Test Case: TC_CI_001, TC_CI_002 | Level: CI / Integration & Negative Gate | Status: PASS (GitHub Actions PR #1 runs 41067212094, 41185982394, negative run 41068574957, branch protection active on main; FIN-73 — VERIFIED COMPLETE (Implementation); PR #1 — OPEN, AWAITING REVIEW AND MERGE DECISION)
+
 Verification Evidence & Test Results:
 - Full API Test Suite: 164 passed, 0 failed, 34 warnings in 5.45s. Command: DATABASE_URL=postgresql:///finsight_fin15_test .venv/bin/pytest -q apps/api/tests
 - Focused FIN-16 Boundary Suite: 7 passed, 0 failed. Command: DATABASE_URL=postgresql:///finsight_fin15_test .venv/bin/pytest -v apps/api/tests/test_fin16_boundary.py

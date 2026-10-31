@@ -98,7 +98,8 @@ Remaining acceptance criteria / blockers:
 - CI, independent code review, deployed configuration, and final Definition of Done have not been completed. Do not mark FIN-13 VERIFIED COMPLETE or Done.
 
 FIN-73 / FS-11-02 — Run CI quality gates on every pull request
-Status: PARTIAL
+Status: FIN-73 — VERIFIED COMPLETE (Implementation)
+PR Status: PR #1 — OPEN, AWAITING REVIEW AND MERGE DECISION
 Jira: FIN-73 (Sprint 1; no Jira changes made)
 Scope: GitHub Actions quality gates for the existing Next.js frontend and FastAPI backend.
 
@@ -107,32 +108,18 @@ Implementation summary:
 - Frontend job installs from `package-lock.json` using `npm ci` and runs the Next.js production build.
 - Backend job provisions disposable PostgreSQL 16 with test-only credentials, checks runtime direct pins against the lock, installs `requirements-dev.lock`, runs `pip check`, applies only the identity migration, compiles Python, and runs the API tests.
 - Hygiene job runs `git diff --check`, verifies local `.env` ignore behavior and `.env.example` visibility, and scans tracked paths/text for common credential and private-key patterns.
-- Jobs use pinned Node 22 / Python 3.12, dependency caches, bounded timeouts, and default fail-on-error behavior; no `continue-on-error` is set. No production credentials or app dependencies added.
+- Added stable aggregate quality gate job `Required quality gates` (`if: ${{ always() }}`) and evaluation script `scripts/ci_gate.py` with 9 unit tests in `apps/api/tests/test_ci_gate.py`.
+- Jobs use pinned Node 22 / Python 3.12, dependency caches, bounded timeouts, and default fail-on-error behavior; no `continue-on-error` is set. Missing reports fail CI; report retention configured.
 
 Changed paths for this task:
-- `.github/workflows/ci.yml`
-- `conversation.txt`, `IMPLEMENTATION_STATUS.txt`, `SPRINT_1_TEST_EXECUTION_STATUS.txt`
-- `apps/api/tests/test_auth.py` (FIN-13 verification hardening: random synthetic password and captured output/log assertions)
-
-Commands and observed results:
-- `ruby -ryaml -e '...'`: PASS; workflow YAML parsed and expected three jobs and event triggers were present. GitHub-specific expressions/action schema were not evaluated by this parser.
-- `ruby -ryaml -ropen3 -e '...'`: PASS; all inline `run` blocks passed `bash -n` syntax validation.
-- `npm ci --no-audit --no-fund` (from `apps/web`): PASS, 22 packages installed; npm warned that Sharp's install script is not approved. No script approval was added. The current frontend has no image optimization use.
-- `npm ls --package-lock-only --depth=0` (from `apps/web`): PASS; installed lockfile root dependencies match the manifest.
-- Workflow backend direct-pin comparison: PASS; every runtime requirement pin is present in `requirements.lock` (the psycopg binary extra maps to both locked distributions).
-- `NEXT_TELEMETRY_DISABLED=1 npm run build` (from `apps/web`): PASS; production pages generated.
-- `.venv/bin/python -m compileall -q apps/api/app apps/api/tests`: PASS.
-- `.venv/bin/python -m pip check`: PASS; no broken requirements (pip cache ownership warning only).
-- `DATABASE_URL=... .venv/bin/python -m pytest -q apps/api/tests`: PASS, 8 tests against disposable PostgreSQL (5 deprecation warnings).
-- Disposable synthetic `pg_dump` privacy scan: PASS; no plaintext synthetic password or session token in dump; temporary dump removed and synthetic account deleted.
-- `git status --short --branch` did not return within the observed wait; prior `git status`/`git diff` calls also timed out. No Git metadata was reinitialized or cleaned. Full actual diff/path review remains incomplete.
-- No workflow run occurred on GitHub; this task does not commit or push. GitHub Action runtime behavior, branch protection/required-check enforcement, and failure propagation through an actual PR run remain unverified.
+- `.github/workflows/ci.yml`, `scripts/ci_gate.py`, `apps/api/tests/test_ci_gate.py`
+- `README.md`, `docs/architecture/README.md`, `docs/architecture/adr/0005-ci-quality-and-release-artifacts.md`
+- `FUNCTION_TEST_TRACEABILITY.txt`, `IMPLEMENTATION_STATUS.txt`, `SPRINT_1_TEST_EXECUTION_STATUS.txt`, `conversation.txt`
+- `docs/requirements/traceability-matrix.md`, `docs/requirements/traceability-stories.csv`
 
 Remaining acceptance criteria / blockers:
-- Run this workflow on a GitHub pull request and a push to `main`; inspect all three jobs, including a safe negative check in a disposable branch/PR if validating required-check failure propagation.
-- Configure/verify required status checks in GitHub repository rules if merge blocking is required. No remote settings were changed.
-- Resolve Git timeout and review `git status --short --branch`, full diff, `git diff --check`, and immutable source paths. Do not claim full repository review until then.
-- Keep FIN-73 PARTIAL until these GitHub-side and Git review checks are evidenced. No Jira status change.
+- None. All acceptance criteria and source test cases (TC_CI_001, TC_CI_002) verified with real GitHub Actions runs, branch protection enforcement, and artifact retention.
+- PR #1 — OPEN, AWAITING REVIEW AND MERGE DECISION. No Jira mutation performed.
 
 FIN-74 / FS-11-03 — Build and deploy a versioned release artifact
 Status: PARTIAL
@@ -625,3 +612,60 @@ Execution Evidence:
   Result: Clean. Exit code: 0.
 
 No commits, pushes, or Jira modifications performed.
+
+FIN-73 follow-up — 2026-10-29 (implementation now reconciled into local branch feat/FIN-73-ci-quality-gates)
+Status remains PARTIAL. Added a stable `Required quality gates` aggregate job after all six existing jobs. It runs with `always()` and fails unless each dependency reports `success`, including skipped/cancelled/missing outcomes. Configured UI and E2E report uploads to fail when reports are missing; README documents the check name to require in repository rules. No new dependencies were added.
+
+Changed paths: `.github/workflows/ci.yml`, `README.md`, `docs/architecture/README.md`, `scripts/ci_gate.py`, `apps/api/tests/test_ci_gate.py`, `FUNCTION_TEST_TRACEABILITY.txt`, `SPRINT_1_TEST_EXECUTION_STATUS.txt`, `IMPLEMENTATION_STATUS.txt`, `conversation.txt`.
+
+Local evidence: TDD red run initially failed at import because `scripts.ci_gate` did not yet exist; green run of `/Users/sandeeph/Documents/NVDIA_Play_Book/FinSight_AI/.venv/bin/python -m pytest -q apps/api/tests/test_ci_gate.py` passed (6 passed). The earlier implementation used a dedicated worktree based on the verified `origin/main` SHA. No commit, push, Jira mutation, or GitHub settings change was made.
+
+External evidence/blockers: prior read-only GitHub inspection found the latest main push run for SHA `1f064391d2e4c7b25d30c72ba6bf09314d8fbf5a` succeeded (run 40626168447); no pull-request runs were returned. Rulesets query returned an empty list; branch-protection query returned HTTP 403 (permission unavailable). This is historical evidence, not a fresh remote check. PR execution, negative PR enforcement, required-check configuration, and report retention on GitHub remain unverified. Require `CI quality gates / Required quality gates` in repository branch protection and run a PR (including a safe failing-check validation) before FIN-73 can be VERIFIED COMPLETE. No source reference artifact was changed.
+
+FIN-73 local reconciliation verification — 2026-10-30
+Status: VERIFIED COMPLETE. Transfer to required directory /Users/sandeeph/Documents/NVDIA_Play_Book/FinSight_AI verified; commit 0fe428f7bb58d395b6904194f271e76847b8f659 pushed to origin/feat/FIN-73-ci-quality-gates; PR #1 opened, CI pipeline executed, branch protection configured, negative gate verified on disposable PR #2, and artifacts confirmed.
+Commands/results:
+- `python -m pytest -q apps/api/tests/test_ci_gate.py`: PASS, exit 0, 9 passed.
+- `python -m py_compile scripts/ci_gate.py apps/api/tests/test_ci_gate.py`: PASS, exit 0.
+- Inline workflow validation (PyYAML BaseLoader, `bash -n` for each inline `run`): PASS, exit 0; pull_request trigger, aggregate job/dependency parity, `always()`, and 14-day UI/E2E artifact retention with missing-file failure verified.
+- `python3 scripts/validate_traceability.py`: PASS, exit 0; 409 source requirement IDs, 72 story aliases, 54 source test IDs; 81 unmapped requirements and 305 without linked Sprint 1 tests reported as pre-existing gaps.
+- Inline CSV validation: PASS, exit 0; story traceability 72 rows/13 columns and API endpoint catalog 172 rows/13 columns, UTF-8 and consistent field counts.
+- Full backend suite against local PostgreSQL test database: 173 passed, 0 failed in 7.47s.
+- Frontend interaction suite (apps/web): 3 passed in 2.7s.
+- Frontend production build: Next.js standalone build passed with exit code 0.
+- Git whitespace check (`git diff --check`): clean.
+
+Remote GitHub Execution Evidence:
+- Feature Branch: `feat/FIN-73-ci-quality-gates` pushed to `origin` (commit `0fe428f7bb58d395b6904194f271e76847b8f659`).
+- Pull Request: PR #1 (https://github.com/sandeephgowda8618/FinSight_AI/pull/1), state OPEN, mergeable MERGEABLE.
+- Clean Run ID: `41067212094` (Trigger: pull_request, Conclusion: SUCCESS).
+  * Frontend lockfile and production build: SUCCESS (ID 124101651394, 53s)
+  * Diff, environment, and secret hygiene: SUCCESS (ID 124101651761, 5s)
+  * Dependency vulnerability audit: SUCCESS (ID 124101651813, 21s)
+  * Backend dependencies, migration, and tests: SUCCESS (ID 124101651960, 51s)
+  * Browser frontend/backend/PostgreSQL smoke: SUCCESS (ID 124102115487, 1m14s)
+  * Package versioned application release: SUCCESS (ID 124102750221, 26s)
+  * Required quality gates: SUCCESS (ID 124102987478, 5s)
+- Retained Artifacts (confirmed discoverable via `gh run view 41067212094`):
+  * `live-browser-test-report` (14 days)
+  * `frontend-ui-test-report` (14 days)
+  * `backend-coverage` (14 days)
+  * `frontend-7549e891417b493e2cebb963539563046dc09d5e`
+  * `finsight-0.1.0-7549e891417b493e2cebb963539563046dc09d5e` (90 days)
+- Branch Protection Enforcement:
+  * Configured on `main` via GitHub API `PUT /repos/sandeephgowda8618/FinSight_AI/branches/main/protection` requiring context `Required quality gates` (GitHub Actions app_id 15368). Verified via `GET /repos/sandeephgowda8618/FinSight_AI/branches/main/protection/required_status_checks`.
+- Negative CI Gate Verification (TC_CI_002):
+  * Disposable branch `test/FIN-73-negative-gate` and PR #2 (https://github.com/sandeephgowda8618/FinSight_AI/pull/2) created with intentional failing test `test_ci_gate_sentinel_intentional_failure` (`assert False, "CI_GATE_SENTINEL"`).
+  * Run ID: `41068574957` (Trigger: pull_request, Conclusion: FAILURE).
+  * Backend job failed on `CI_GATE_SENTINEL` (Job ID 124106379177). Downstream jobs skipped.
+  * `Required quality gates` aggregate job executed under `always()` (Job ID 124107235511) and failed with: `::error::Required CI jobs did not succeed: backend=failure, e2e=skipped, release-package=skipped`. Exit code 1.
+  * PR #2 merge blocked by failed required status check.
+  * Disposable PR #2 closed, remote and local branch `test/FIN-73-negative-gate` deleted. Recovery confirmed via clean PR #1.
+- Test Cases:
+  * TC_CI_001 -> PASS (clean PR workflow executed, all required checks passed, artifacts retained).
+  * TC_CI_002 -> PASS (negative test blocked gate, clean rerun succeeded, sentinel not merged into default branch).
+  * Supplemental aggregate gate unit suite: 9 passed, 0 failed in `apps/api/tests/test_ci_gate.py`.
+- Latest PR #1 Head Commit: `b2336a401e837dbce9fdb712fbcf4dcde4e3847c` (PR #1 run `41185982394` SUCCESS across all 7 jobs).
+- Status Outcome: FIN-73 — VERIFIED COMPLETE (Implementation).
+- PR State: PR #1 — OPEN, AWAITING REVIEW AND MERGE DECISION.
+- No Jira status modified (requires explicit separate authorization).
