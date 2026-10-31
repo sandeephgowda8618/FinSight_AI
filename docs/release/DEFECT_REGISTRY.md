@@ -1,15 +1,15 @@
 # FinSight AI — Defect Triage and Regression Traceability Registry
 
-**Document version:** 1.0.0  
-**Release baseline:** 0.1.0  
-**Traceability:** NFR-G-27 (Dependency Management), NFR-G-38 (Deployment Reproducibility), FIN-81 / FS-11-10  
+**Document version:** 1.0.0
+**Release baseline:** 0.1.0
+**Traceability:** NFR-G-27 (Dependency Management), NFR-G-38 (Deployment Reproducibility), FIN-81 / FS-11-10
 **Classification:** Internal Engineering Record
 
 ---
 
 ## 1. Overview & Operating Policy
 
-This defect registry tracks defects, edge cases, and regressions discovered during Sprint 1 development and continuous integration hardening. 
+This defect registry tracks defects, edge cases, and regressions discovered during Sprint 1 development and continuous integration hardening.
 
 In accordance with FinSight AI engineering rules:
 1. Every resolved defect must link to an automated regression test.
