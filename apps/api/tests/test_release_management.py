@@ -80,16 +80,21 @@ def test_release_packaging_includes_sbom_changelog_and_all_migrations():
         fake_frontend.mkdir()
         (fake_frontend / "server.js").write_text("// server.js", encoding="utf-8")
 
+        fake_static = tmp_path / "static"
+        fake_static.mkdir()
+        (fake_static / "dummy.css").write_text("/* dummy */", encoding="utf-8")
+
         out_dir = tmp_path / "dist"
         commit_sha = "0123456789abcdef0123456789abcdef01234567"
 
-        # Mock web_static and runtime_config check in package_release
+        # Pass web_static_dir so the packaging test is hermetic even when frontend is not built
         with patch("scripts.package_release.ROOT", ROOT):
             artifact, checksum, build_info = package(
                 frontend_dir=fake_frontend,
                 version="0.1.0",
                 commit_sha=commit_sha,
                 output_dir=out_dir,
+                web_static_dir=fake_static,
             )
 
             assert artifact.is_file()

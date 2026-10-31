@@ -29,7 +29,13 @@ VERSION_PATTERN = re.compile(r"\A[0-9]+\.[0-9]+\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?\Z
 SHA_PATTERN = re.compile(r"\A[0-9a-f]{40}\Z")
 
 
-def package(frontend_dir: Path, version: str, commit_sha: str | None, output_dir: Path) -> tuple[Path, Path, Path]:
+def package(
+    frontend_dir: Path,
+    version: str,
+    commit_sha: str | None,
+    output_dir: Path,
+    web_static_dir: Path | None = None,
+) -> tuple[Path, Path, Path]:
     if not VERSION_PATTERN.fullmatch(version):
         raise ValueError("version must be a numeric semantic version, optionally with a prerelease/build suffix")
     if commit_sha and not SHA_PATTERN.fullmatch(commit_sha):
@@ -37,7 +43,7 @@ def package(frontend_dir: Path, version: str, commit_sha: str | None, output_dir
     if not frontend_dir.is_dir() or not (frontend_dir / "server.js").is_file():
         raise FileNotFoundError("frontend standalone build is missing server.js")
 
-    web_static = ROOT / "apps/web/.next/static"
+    web_static = web_static_dir if web_static_dir is not None else (ROOT / "apps/web/.next/static")
     runtime_config = ROOT / "apps/web/app/api/runtime-config/route.js"
     if not web_static.is_dir() or not runtime_config.is_file():
         raise FileNotFoundError("build the frontend before packaging")
@@ -149,9 +155,16 @@ def main() -> None:
     parser.add_argument("--frontend-dir", type=Path, required=True, help="Next standalone output directory")
     parser.add_argument("--version", required=True)
     parser.add_argument("--commit-sha", default=os.environ.get("GITHUB_SHA"))
+    parser.add_argument("--web-static-dir", type=Path, default=None, help="Directory containing frontend static assets")
     parser.add_argument("--output-dir", type=Path, default=ROOT / "dist")
     args = parser.parse_args()
-    artifact, checksum, build_info = package(args.frontend_dir, args.version, args.commit_sha, args.output_dir)
+    artifact, checksum, build_info = package(
+        args.frontend_dir,
+        args.version,
+        args.commit_sha,
+        args.output_dir,
+        args.web_static_dir,
+    )
     print(f"Created {artifact}")
     print(f"Created {checksum}")
     print(f"Created {build_info}")
